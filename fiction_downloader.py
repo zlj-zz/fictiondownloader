@@ -26,6 +26,7 @@ class Downloader(object):
     def load_conf(self):
         conf = self.conf
 
+        # Parse config.
         self.fiction_name = conf.get("fiction_name", "")
         self.base_url = conf.get("base_url", "")
 
@@ -40,6 +41,7 @@ class Downloader(object):
         self.search_author_xpath = search_conf.get("author_xpath", "")
 
         desc_conf = conf.get("desc", {})
+        self.desc_url_is_completed = desc_conf.get("url_is_completed", False)
         self.chapter_xpath = desc_conf.get("chapter_xpath", "")
 
         chapter_conf = conf.get("chapter", {})
@@ -47,14 +49,31 @@ class Downloader(object):
         self.chapter_title_xpath = chapter_conf.get("title_xpath", "")
         self.chapter_content_xpath = chapter_conf.get("content_xpath", "")
 
-        self.download_sleep = conf.get("download_sleep", 0.2)
+        self.download_sleep = conf.get("download_sleep", 0.3)
         self.request_verify = conf.get("request_verify", True)
         if not self.request_verify:
             # Don't output warn.
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-        # Modify conf status.
-        self.already_loaded_conf = True
+        # Process config.
+        warns = []
+        if not self.fiction_name:
+            warns.append("Must Give a fiction name.")
+        if not self.base_url and (
+            not search_url_is_completed
+            or not self.desc_url_is_completed
+            or not self.chapter_url_is_completed
+        ):
+            warns.append("Cannot miss base url, because has url is not completed.")
+
+        if warns:
+            print("Config Warning:")
+            for warn in warns:
+                print(warn)
+            return
+        else:
+            # Modify conf status.
+            self.already_loaded_conf = True
 
     def get_html(self, url, encoding="utf-8"):
         # TODO:force request. It's not good.
@@ -150,14 +169,17 @@ class Downloader(object):
         saved_name = search_res[idx][1] + ".txt"
         print(f"--> Save name is:'{saved_name}'")
 
-        desc_url = self.base_url + search_res[idx][0]
+        if not self.desc_url_is_completed:
+            desc_url = self.base_url + search_res[idx][0]
+        else:
+            desc_url = search_res[idx][0]
         print(f"--> Catalogue url: {desc_url}")
 
         desc_html = self.get_html(desc_url)
         total, urls = self.parse_desc_html(desc_html)
         print(f"--> Total {total} chapters.")
 
-        #
+        # Clear exist.
         if os.path.exists(saved_name):
             with open(saved_name, "w") as f:
                 pass
@@ -165,7 +187,7 @@ class Downloader(object):
         # Download chapter and save.
         start_t = time.time()
         print("\nStart Download:")
-        print("\033[s")  # Mark current position (-2, 1)
+        # print("\033[s")  # Mark current position (-2, 1)
         for progress, sub_url in enumerate(urls, start=1):
             if not self.chapter_url_is_completed:
                 chapter_url = self.base_url + sub_url
@@ -183,10 +205,10 @@ class Downloader(object):
                 f.write(chapter_content + "\n\n")
 
             print(
-                "\033[u-->", progress, chapter_url, "\033[K"
+                "\r-->", progress, chapter_url, "\033[K"
             )  # Goto the mark position to print and clear subsequent.
             print(
-                f"\r:: Number of downloaded chapters: {progress / total * 100:.2f}%, "
+                f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
                 f"speed time: {time.time()-start_t:.1f}s",
                 end="",
             )

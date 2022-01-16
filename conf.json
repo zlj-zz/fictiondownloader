@@ -17,6 +17,6 @@
     "title_xpath": "/html/body/section[3]/div/div[2]/h1/text()",
     "content_xpath": "/html/body/section[3]/div/div[2]/article/text()"
   },
-  "download_sleep": 3,
+  "download_sleep": 2,
   "request_verify": false
 }
