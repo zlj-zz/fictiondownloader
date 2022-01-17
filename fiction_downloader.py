@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import json
 import requests
@@ -12,19 +13,50 @@ headers = {
 
 # 飞山中文
 class Downloader(object):
-    def __init__(self, conf: dict = {}, auto_load_conf: bool = True) -> None:
+    def __init__(
+        self, conf: dict = {}, conf_path: str = "", auto_load_conf: bool = True
+    ) -> None:
         if conf:
             self.conf = conf
         else:
-            with open("./conf.json", "r") as f:
-                self.conf = json.load(f)
+            self.conf = self.read_conf_from_file(conf_path)
         # print(self.conf)
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
 
+    def read_conf_from_file(self, conf_path: str) -> dict:
+        conf = {}
+
+        if conf_path:
+            if not os.path.isfile(conf_path):
+                print("Config path is not exist.")
+            if not conf_path.endswith(".json"):
+                print("Config must be a json file.")
+
+            conf = self.read_json(conf_path)
+        else:
+            # read default config.
+            conf = self.read_json("./conf.json")
+
+        return conf
+
+    def read_json(self, json_path: str) -> dict:
+        res = {}
+
+        try:
+            with open(json_path, "r") as f:
+                res = json.load(f)
+        except Exception:
+            print("load json error.")
+
+        return res
+
     def load_conf(self):
         conf = self.conf
+        if not conf:
+            print("Don't have config can be loaded.")
+            return
 
         # Parse config.
         self.fiction_name = conf.get("fiction_name", "")
@@ -137,7 +169,7 @@ class Downloader(object):
         if self.auto_load_conf:
             self.load_conf()
         if not self.already_loaded_conf:
-            print("Please manual load conf.")
+            print("The configuration file was not loaded correctly.")
             return
 
         # search fiction.
@@ -150,16 +182,19 @@ class Downloader(object):
             print("No search results or xpath is not right.")
             return
 
-        for search_res_item in search_res:
-            print(*search_res_item[1:])
+        for search_no, search_res_item in enumerate(search_res, start=1):
+            print(search_no, *search_res_item[1:])
+
+        # download choice.
         while True:
-            idx = input(f"input choice(0-{len(search_res)-1}):")
+            idx = input(f"input choice(1-{len(search_res)}):")
             try:
-                idx = int(idx)
+                idx = int(idx) - 1
                 if idx >= len(search_res) or idx < 0:
+                    print("\033[1A\rerror: Index out of range.\033[K")
                     continue
             except Exception:
-                continue
+                print("\033[1A\rerror: Please input a number.\033[K")
             else:
                 break
 
