@@ -1,10 +1,13 @@
+# /usr/bin/env python3
+# -*- coding:utf-8 -*-
+
 import os
-import sys
 import time
 import json
 import requests
-from lxml import etree
 import urllib3
+from lxml import etree
+from argparse import ArgumentParser
 
 
 headers = {
@@ -16,11 +19,9 @@ class Downloader(object):
     def __init__(
         self, conf: dict = {}, conf_path: str = "", auto_load_conf: bool = True
     ) -> None:
-        if conf:
-            self.conf = conf
-        else:
-            self.conf = self.read_conf_from_file(conf_path)
-        # print(self.conf)
+        self.conf = conf
+        self.conf_path = conf_path
+        self.fiction_name = ""
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
@@ -53,13 +54,18 @@ class Downloader(object):
         return res
 
     def load_conf(self):
+        if not self.conf:
+            self.conf = self.read_conf_from_file(self.conf_path)
+
+        # print(self.conf)
         conf = self.conf
         if not conf:
             print("Don't have config can be loaded.")
             return
 
         # Parse config.
-        self.fiction_name = conf.get("fiction_name", "")
+        if not self.fiction_name:
+            self.fiction_name = conf.get("fiction_name", "")
         self.base_url = conf.get("base_url", "")
 
         search_conf = conf.get("search", {})
@@ -258,6 +264,39 @@ class Downloader(object):
             print("\nManual stop.")
 
 
+def parse_cmd():
+    parser = ArgumentParser(prog="fd", description="", prefix_chars="-")
+
+    # add command.
+    parser.add_argument(
+        "-n", "--name", type=str, metavar="fiction_name", help="custom fiction name."
+    )
+    parser.add_argument("--conf", type=str, metavar="path", help="custom config path.")
+
+    # parse command.
+    args, unknown = parser.parse_known_args()
+    # print(args, unknown)
+
+    # process command.
+    return args, unknown
+
+
+def main():
+    args, unknown = parse_cmd()
+    if unknown:
+        print(f"Not support command: {unknown}")
+
+    downloader = Downloader(auto_load_conf=False)
+
+    if args.name:
+        downloader.fiction_name = args.name
+    if args.conf:
+        downloader.conf_path = args.conf
+
+    downloader.load_conf()
+    downloader.run()
+
+
 if __name__ == "__main__":
     conf = {
         "fiction_name": "问道红尘",
@@ -285,5 +324,6 @@ if __name__ == "__main__":
     #     json.dump(conf, f, indent=2)
 
     # downloader = Downloader(conf)
-    downloader = Downloader()
-    downloader.run()
+    # downloader = Downloader()
+    # downloader.run()
+    main()
