@@ -265,14 +265,20 @@ class Downloader(object):
 
 
 def parse_cmd():
-    parser = ArgumentParser(prog="fd", description="", prefix_chars="-")
+    parser = ArgumentParser(prog="novel", description="", prefix_chars="-")
 
     # add command.
     parser.add_argument(
         "-n", "--name", type=str, metavar="fiction_name", help="custom fiction name."
     )
     parser.add_argument("--conf", type=str, metavar="path", help="custom config path.")
-
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        help="Show version and exit.",
+        version="novel version 1.0.0",
+    )
     # parse command.
     args, unknown = parser.parse_known_args()
     # print(args, unknown)
@@ -320,10 +326,4 @@ if __name__ == "__main__":
         "download_sleep": 3,
         "request_verify": False,
     }
-    # with open("./conf.json", "w") as f:
-    #     json.dump(conf, f, indent=2)
-
-    # downloader = Downloader(conf)
-    # downloader = Downloader()
-    # downloader.run()
     main()
