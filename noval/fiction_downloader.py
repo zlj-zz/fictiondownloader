@@ -10,6 +10,8 @@ from lxml import etree
 from argparse import ArgumentParser
 
 
+RUN_PATH = os.path.dirname(__file__)
+DEFAULT_CONF_FILE = "noval_conf.json"
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:80.0) Gecko/20100101 Firefox/80.0",
 }
@@ -17,28 +19,39 @@ headers = {
 # 飞山中文
 class Downloader(object):
     def __init__(
-        self, conf: dict = {}, conf_path: str = "", auto_load_conf: bool = True
+        self,
+        conf: dict = {},
+        conf_path: str = "",
+        auto_load_conf: bool = True,
+        debug: bool = False,
     ) -> None:
         self.conf = conf
         self.conf_path = conf_path
         self.fiction_name = ""
+        self.save_path = ""
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
+
+        self.debug = debug
 
     def read_conf_from_file(self, conf_path: str) -> dict:
         conf = {}
 
         if conf_path:
             if not os.path.isfile(conf_path):
-                print("Config path is not exist.")
+                print("INFO: Config path is not exist.")
             if not conf_path.endswith(".json"):
-                print("Config must be a json file.")
+                print("INFO: Config must be a json file.")
 
+            # read given config.
             conf = self.read_json(conf_path)
+        elif os.path.isfile(DEFAULT_CONF_FILE):
+            # read current path default config.
+            conf = self.read_json(DEFAULT_CONF_FILE)
         else:
             # read default config.
-            conf = self.read_json("./conf.json")
+            conf = self.read_json(os.path.join(RUN_PATH, "..", DEFAULT_CONF_FILE))
 
         return conf
 
@@ -48,8 +61,8 @@ class Downloader(object):
         try:
             with open(json_path, "r") as f:
                 res = json.load(f)
-        except Exception:
-            print("load json error.")
+        except json.decoder.JSONDecodeError:
+            print("ERROR: The json file is not right.")
 
         return res
 
@@ -60,7 +73,7 @@ class Downloader(object):
         # print(self.conf)
         conf = self.conf
         if not conf:
-            print("Don't have config can be loaded.")
+            print("INFO: Don't have config can be loaded.")
             return
 
         # Parse config.
@@ -96,16 +109,17 @@ class Downloader(object):
         # Process config.
         warns = []
         if not self.fiction_name:
-            warns.append("Must Give a fiction name.")
+            warns.append("ERROR: Must Give a fiction name.")
         if not self.base_url and (
             not search_url_is_completed
             or not self.desc_url_is_completed
             or not self.chapter_url_is_completed
         ):
-            warns.append("Cannot miss base url, because has url is not completed.")
+            warns.append(
+                "ERROR: Cannot miss base url, because has url is not completed."
+            )
 
         if warns:
-            print("Config Warning:")
             for warn in warns:
                 print(warn)
             return
@@ -113,12 +127,26 @@ class Downloader(object):
             # Modify conf status.
             self.already_loaded_conf = True
 
-    def get_html(self, url, encoding="utf-8"):
+    def get_html(self, url, encoding="utf-8", retry=5):
         # TODO:force request. It's not good.
         try:
             resp = requests.get(url, verify=self.request_verify)
         except requests.exceptions.ConnectTimeout:
-            return self.get_html(url, encoding)
+            if retry > 0:
+                return self.get_html(url, encoding, retry - 1)
+            else:
+                print("INFO: connect the url timeout.")
+                return
+        except requests.exceptions.SSLError:
+            print("INFO: SSL certificate verify failed.")
+            return ""
+        except requests.exceptions.ConnectionError:
+            # TODO: may header alive-keep
+            if retry > 0:
+                return self.get_html(url, encoding, retry - 1)
+            else:
+                print("INFO: connect the url timeout.")
+                return
 
         html = resp.content.decode(encoding)
         return html
@@ -164,6 +192,8 @@ class Downloader(object):
         items = html_tree.xpath(self.chapter_content_xpath)
 
         chapter = "\n".join(items)
+
+        # special process.
         chapter = (
             chapter.replace("&nbsp", "")
             .replace("<sript>()</sript>", "")
@@ -181,6 +211,9 @@ class Downloader(object):
         # search fiction.
         print(f"Search fiction {self.fiction_name}:")
         search_html = self.get_html(self.search_url.format(self.fiction_name))
+        if not search_html:
+            print("INFO: Can't get search result page.")
+            return
         search_res = self.parse_search_html(search_html)
 
         # show search result.
@@ -210,6 +243,9 @@ class Downloader(object):
         saved_name = search_res[idx][1] + ".txt"
         print(f"--> Save name is:'{saved_name}'")
 
+        save_path = os.path.join(self.save_path, saved_name)
+        print(f"--> Save path is:'{save_path}'")
+
         if not self.desc_url_is_completed:
             desc_url = self.base_url + search_res[idx][0]
         else:
@@ -217,6 +253,9 @@ class Downloader(object):
         print(f"--> Catalogue url: {desc_url}")
 
         desc_html = self.get_html(desc_url)
+        if not desc_html:
+            print("INFO: Can't get desc page.")
+            return
         total, urls = self.parse_desc_html(desc_html)
         print(f"--> Total {total} chapters.")
 
@@ -236,12 +275,23 @@ class Downloader(object):
                 chapter_url = sub_url
 
             # Get one chapter.
-            chapter_html = self.get_html(chapter_url)
+            while True:
+                chapter_html = self.get_html(chapter_url)
+                if not chapter_html:
+                    try_ans = input(f"Are you want to try again (y/n):").lower()
+                    if try_ans in ["y", "Y", "yes", "Yes"]:
+                        print("\033[1A\rRe-trying...\033[K")
+                        continue
+                    else:
+                        print("INFO: Can't get current chapter page.")
+                        return
+                else:
+                    break
             chapter_title, chapter_content = self.parse_chapter_html(chapter_html)
             # print(chapter_title, chapter_content)
 
             # Write to file.
-            with open(saved_name, "a+") as f:
+            with open(save_path, "a+") as f:
                 f.write(chapter_title + "\n")
                 f.write(chapter_content + "\n\n")
 
@@ -273,6 +323,9 @@ def parse_cmd():
     )
     parser.add_argument("--conf", type=str, metavar="path", help="custom config path.")
     parser.add_argument(
+        "--save-to", type=str, metavar="path", help="custom fiction save path."
+    )
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -298,6 +351,8 @@ def main():
         downloader.fiction_name = args.name
     if args.conf:
         downloader.conf_path = args.conf
+    if args.save_to:
+        downloader.save_path = args.save_to
 
     downloader.load_conf()
     downloader.run()
