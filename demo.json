@@ -1,0 +1,26 @@
+{
+  "fiction_name": "Fiction name.(OPTION)",
+  "base_url": "Url of novel website.(MUST)",
+  "search": {
+    "url": "Search url.(MUST)",
+    "url_is_completed": "Is the search URL complete.(bool, default is false)",
+    "base_xpath": "Base xpath of url, name and author.(OPTION)",
+    "url_xpath": "Fiction url xpath.(MUST)",
+    "name_xpath": "Fiction name xpath.(MUST)",
+    "author_xpath": "Fiction author xpath.(MUST)"
+  },
+  "desc": {
+    "multi_page": "Whether the directory is paged.(bool, default is false)",
+    "next_page_xpath": "Next desc page xpath.(OPTION)",
+    "chapter_xpath": "Each chapter xpath.(MUST)"
+  },
+  "chapter": {
+    "is_completed": false,
+    "title_xpath": "Title xpath.(MUST)",
+    "content_xpath": "Chapter content xpath.(MUST)"
+  },
+  "retry_time": "Page access retries.(number, default is 5 times)",
+  "download_sleep": "Download interval of each chapter.(number, default is 0.3s)",
+  "request_verify": false,
+  "saved_dir": "Novel storage directory.(Default is current dir, OPTION)"
+}
