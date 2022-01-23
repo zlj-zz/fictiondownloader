@@ -1,0 +1,3 @@
+# noval
+
+Configurable novel Downloader.

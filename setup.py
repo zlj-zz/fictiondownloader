@@ -1,7 +1,15 @@
 import os, sys
+from setuptools import setup, find_packages
+import noval
 
 # 'setup.py publish' shortcut.
 if sys.argv[-1] == "publish":
+    os.system(f'git commit -am "Bump to {noval.__version__}"')
+    os.system(f"git tag {noval.__version__}")
+    os.system("git push")
+    os.system("git push --tags")
+
+    os.system("rm -rf dist/*")
     os.system("python setup.py sdist bdist_wheel")
     os.system("twine upload dist/*")
     sys.exit()
@@ -14,14 +22,12 @@ if PYTHON_VERSION < (3, 8, 0):
 try:
     LONG_DESCRIPTION = open("README.md", encoding="utf-8").read()
 except Exception:
-    LONG_DESCRIPTION = """# novel
+    LONG_DESCRIPTION = """# noval
 
 Configurable novel Downloader.
 ```
     """
 
-from setuptools import setup, find_packages
-import noval
 
 setup(
     name=noval.__project__,
