@@ -28,7 +28,10 @@ class Downloader(object):
         self.conf = conf
         self.conf_path = conf_path
         self.fiction_name = ""
+        self.saved_name = ""
         self.save_path = ""
+
+        self.desc_url = ""
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
@@ -151,7 +154,7 @@ class Downloader(object):
         html = resp.content.decode(encoding)
         return html
 
-    def parse_search_html(self, html_code):
+    def parse_search_html(self, html_code: str):
         html_tree = etree.HTML(html_code)
 
         res = []
@@ -175,7 +178,7 @@ class Downloader(object):
 
         return res
 
-    def parse_desc_html(self, html_code):
+    def parse_desc_html(self, html_code: str):
         html_tree = etree.HTML(html_code)
 
         items = html_tree.xpath(self.chapter_xpath)
@@ -185,7 +188,7 @@ class Downloader(object):
 
         return total, urls
 
-    def parse_chapter_html(self, html_code):
+    def parse_chapter_html(self, html_code: str):
         html_tree = etree.HTML(html_code)
 
         title = html_tree.xpath(self.chapter_title_xpath)[0]
@@ -201,34 +204,12 @@ class Downloader(object):
         )
         return title, chapter
 
-    def process_search(self):
-        pass
-
-    def process_desc(self):
-        pass
-
-    def process_chapter(self):
-        pass
-
-    def downloader(self):
-        if self.auto_load_conf:
-            self.load_conf()
-        if not self.already_loaded_conf:
-            print("The configuration file was not loaded correctly.")
-            return
-
-        # search fiction.
-        print(f"Search fiction {self.fiction_name}:")
-        search_html = self.get_html(self.search_url.format(self.fiction_name))
-        # print(search_html)
-        if not search_html:
-            print("INFO: Can't get search result page.")
-            return
+    def process_search(self, search_html: str):
         search_res = self.parse_search_html(search_html)
 
         # show search result.
         if not search_res:
-            print("No search results or xpath is not right.")
+            print("INFO: No search results or xpath is not right.")
             return
 
         for search_no, search_res_item in enumerate(search_res, start=1):
@@ -247,31 +228,63 @@ class Downloader(object):
             else:
                 break
 
-        # Get info.
-        print("\nOutput Info:")
-
-        saved_name = search_res[idx][1] + ".txt"
-        print(f"--> Save name is:'{saved_name}'")
-
-        save_path = os.path.join(self.save_path, saved_name)
-        print(f"--> Save path is:'{save_path}'")
+        # Set info
+        self.saved_name = search_res[idx][1] + ".txt"
+        self.save_path = os.path.join(self.save_path, self.saved_name)
 
         if not self.desc_url_is_completed:
-            desc_url = self.base_url + search_res[idx][0]
+            self.desc_url = self.base_url + search_res[idx][0]
         else:
-            desc_url = search_res[idx][0]
-        print(f"--> Catalogue url: {desc_url}")
+            self.desc_url = search_res[idx][0]
+        print(f"--> Catalogue url: {self.desc_url}")
 
-        desc_html = self.get_html(desc_url)
-        if not desc_html:
-            print("INFO: Can't get desc page.")
+    def process_desc(self):
+        pass
+
+    def process_chapter(self):
+        pass
+
+    def downloader(self):
+        if self.auto_load_conf:
+            self.load_conf()
+        if not self.already_loaded_conf:
+            print("The configuration file was not loaded correctly.")
             return
+
+        # search fiction.
+        print(f"Search fiction {self.fiction_name}:")
+        search_html = self.get_html(self.search_url.format(self.fiction_name))
+        if not search_html:
+            print("INFO: Can't get search result page.")
+            return
+        self.process_search(search_html)
+
+        if self.desc_url:
+            desc_html = self.get_html(self.desc_url)
+            if not desc_html:
+                print("INFO: Can't get desc page.")
+                return
+        else:
+            # may only one result, goto dest page.
+            print("INFO: Try to replace search page to desc page.")
+            desc_html = search_html
+            self.saved_name = self.fiction_name + ".txt"
+            self.save_path = os.path.join(self.save_path, self.saved_name)
+
+        # Output info.
+        print("\nOutput Info:")
+        print(f"--> Save name is:'{self.saved_name}'")
+        print(f"--> Save path is:'{self.save_path}'")
+
+        # Process chapters.
         total, urls = self.parse_desc_html(desc_html)
+        if not total or not urls:
+            print("INFO: Not found any chapters.")
         print(f"--> Total {total} chapters.")
 
-        # Clear exist.
-        if os.path.exists(saved_name):
-            with open(saved_name, "w") as f:
+        # Clear exist file.
+        if os.path.exists(self.saved_name):
+            with open(self.saved_name, "w") as f:
                 pass
 
         # Download chapter and save.
@@ -301,7 +314,7 @@ class Downloader(object):
             # print(chapter_title, chapter_content)
 
             # Write to file.
-            with open(save_path, "a+") as f:
+            with open(self.save_path, "a+") as f:
                 f.write(chapter_title + "\n")
                 f.write(chapter_content + "\n\n")
 
