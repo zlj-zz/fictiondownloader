@@ -1,5 +1,5 @@
 {
-  "fiction_name": "问道红尘",
+  "fiction_name": "这是我的星球",
   "base_url": "https://www.feishanzw.com",
   "search": {
     "url": "/search.php?search={0}",
@@ -17,6 +17,6 @@
     "title_xpath": "/html/body/section[3]/div/div[2]/h1/text()",
     "content_xpath": "/html/body/section[3]/div/div[2]/article/text()"
   },
-  "download_sleep": 2,
+  "download_sleep": 0.2,
   "request_verify": false
 }

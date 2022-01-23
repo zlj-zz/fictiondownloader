@@ -201,6 +201,15 @@ class Downloader(object):
         )
         return title, chapter
 
+    def process_search(self):
+        pass
+
+    def process_desc(self):
+        pass
+
+    def process_chapter(self):
+        pass
+
     def downloader(self):
         if self.auto_load_conf:
             self.load_conf()
@@ -211,6 +220,7 @@ class Downloader(object):
         # search fiction.
         print(f"Search fiction {self.fiction_name}:")
         search_html = self.get_html(self.search_url.format(self.fiction_name))
+        # print(search_html)
         if not search_html:
             print("INFO: Can't get search result page.")
             return
