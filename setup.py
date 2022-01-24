@@ -53,7 +53,7 @@ setup(
         "Operating System :: MacOS",
         "Operating System :: Microsoft :: Windows",
     ],
-    data_files=["noval_conf.json"],
+    data_files=["conf/noval_conf.json"],
     install_requires=["requests", "lxml"],
     entry_points="""
         [console_scripts]

@@ -3,7 +3,6 @@
   "base_url": "https://www.feishanzw.com",
   "search": {
     "url": "/search.php?search={0}",
-    "url_is_completed": false,
     "base_xpath": "/html/body/section[3]/div/div[1]/table/tbody/tr",
     "url_xpath": "./td[1]/a/@href",
     "name_xpath": "./td[1]/a/text()",
@@ -13,7 +12,6 @@
     "chapter_xpath": "/html/body/section[4]/div/div[1]/ul/li/a/@href"
   },
   "chapter": {
-    "is_completed": false,
     "title_xpath": "/html/body/section[3]/div/div[2]/h1/text()",
     "content_xpath": "/html/body/section[3]/div/div[2]/article/text()"
   },

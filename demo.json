@@ -3,7 +3,6 @@
   "base_url": "Url of novel website.(MUST)",
   "search": {
     "url": "Search url.(MUST)",
-    "url_is_completed": "Is the search URL complete.(bool, default is false)",
     "base_xpath": "Base xpath of url, name and author.(OPTION)",
     "url_xpath": "Fiction url xpath.(MUST)",
     "name_xpath": "Fiction name xpath.(MUST)",
@@ -15,7 +14,6 @@
     "chapter_xpath": "Each chapter xpath.(MUST)"
   },
   "chapter": {
-    "is_completed": false,
     "title_xpath": "Title xpath.(MUST)",
     "content_xpath": "Chapter content xpath.(MUST)"
   },

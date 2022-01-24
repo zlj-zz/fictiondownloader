@@ -10,8 +10,6 @@
   },
   "desc": {
     "catalogue_url_xpath": "/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[1]/a/@href",
-    "multi_page": false,
-    "next_page_xpath": "",
     "chapter_xpath": "/html/body/div/div[5]/div[1]/ul/li/a/@href"
   },
   "chapter": {
@@ -20,8 +18,5 @@
   },
   "retry_times": 5,
   "download_sleep": 0.2,
-  "request_verify": true,
-  "debug": true,
-  "debug_display": "url,xpath,info",
-  "saved_dir": ""
+  "request_verify": true
 }

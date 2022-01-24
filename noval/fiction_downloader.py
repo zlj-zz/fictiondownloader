@@ -21,7 +21,17 @@ URL_RE = re.compile(
     r"(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?"
 )
 
-# 飞山中文
+
+def splicing_url(base: str, part: str):
+    if URL_RE.match(part):
+        return part
+
+    if part.startswith("/") and len(base.split("/")[3:]) > 1:
+        base = os.path.dirname(os.path.dirname(base))
+
+    return os.path.join(base, part.lstrip("/"))
+
+
 class Downloader(object):
     def __init__(
         self,
@@ -38,7 +48,6 @@ class Downloader(object):
 
         self.search_res_url = ""
         self.desc_res_url = ""
-        self.desc_url = ""
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
@@ -65,6 +74,10 @@ class Downloader(object):
 
         return conf
 
+    def _debug_output(self, msg: str, t: str):
+        if self.debug and t in self.debug_display:
+            print(msg)
+
     def read_json(self, json_path: str) -> dict:
         res = {}
 
@@ -77,10 +90,10 @@ class Downloader(object):
         return res
 
     def load_conf(self):
+        # Try to read config from file if don't incoming config.
         if not self.conf:
             self.conf = self.read_conf_from_file(self.conf_path)
 
-        # print(self.conf)
         conf = self.conf
         if not conf:
             print("INFO: Don't have config can be loaded.")
@@ -93,8 +106,6 @@ class Downloader(object):
 
         search_conf = conf.get("search", {})
         self.search_url = search_conf.get("url", "")
-        if not URL_RE.match(self.search_url):
-            self.search_url = self.base_url + self.search_url
         self.search_base_xpath = search_conf.get("base_xpath", "")
         self.search_url_xpath = search_conf.get("url_xpath", "")
         self.search_name_xpath = search_conf.get("name_xpath", "")
@@ -110,12 +121,17 @@ class Downloader(object):
 
         self.download_sleep = conf.get("download_sleep", 0.3)
         self.request_verify = conf.get("request_verify", True)
+        self.retry_times = conf.get("retry_times", 5)
+        self.debug = self.debug if self.debug else conf.get("debug", False)
+        self.debug_display = conf.get("debug_display", "").replace(" ", "").split(",")
+
+        warns = []
+        # Process config.
+        if not URL_RE.match(self.search_url):
+            self.search_url = self.base_url + self.search_url
         if not self.request_verify:
             # Don't output warn.
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-        # Process config.
-        warns = []
         if not self.fiction_name:
             warns.append("ERROR: Must Give a fiction name.")
         if not self.base_url:
@@ -154,12 +170,11 @@ class Downloader(object):
 
         html = resp.content.decode(encoding)
         url = resp.url
-        print("true", url)
+        # print("true", url)
 
         return html, url
 
     def parse_search_html(self, html_code: str):
-        # print(html_code)
         html_tree = etree.HTML(html_code)
 
         res = []
@@ -254,40 +269,48 @@ class Downloader(object):
         pass
 
     def downloader(self):
-        if self.auto_load_conf:
-            self.load_conf()
-        if not self.already_loaded_conf:
-            print("The configuration file was not loaded correctly.")
-            return
-
-        # search fiction.
+        # Search fiction.
         print(f"Search fiction {self.fiction_name}:")
-        search_html, _ = self.get_html(self.search_url.format(self.fiction_name))
+        search_html, search_true_url = self.get_html(
+            self.search_url.format(self.fiction_name)
+        )
+        self._debug_output(search_html, "html")
+        self._debug_output(search_true_url, "url")
         if not search_html:
             print("INFO: Can't get search result page.")
             return
         self.process_search(search_html)
 
         if self.search_res_url:
-            print(self.search_res_url)
-            # has desc page.
+            self._debug_output(self.search_res_url, "url")
+            # It's desc page.
             if self.catalogue_url_xpath:
-                desc_html, _ = self.get_html(self.base_url + self.search_res_url)
+                desc_html, _ = self.get_html(
+                    splicing_url(self.base_url, self.search_res_url)
+                )
                 self.parse_desc_html(desc_html)
-                print(self.desc_res_url)
 
-                catalogue_html, _ = self.get_html(self.base_url + self.desc_res_url)
+                if not self.desc_res_url:
+                    print("ERROR: no catalogue url.")
+                    return
+                catalogue_html, catalogue_base_url = self.get_html(
+                    splicing_url(self.base_url, self.desc_res_url)
+                )
+
+            # It's catalogue page.
             else:
-                catalogue_html, _ = self.get_html(self.base_url + self.search_res_url)
-            print(_)
+                catalogue_html, catalogue_base_url = self.get_html(
+                    splicing_url(self.base_url, self.search_res_url)
+                )
 
             if not catalogue_html:
                 print("INFO: Can't get catalogue page.")
                 return
         else:
-            # may only one result, goto dest page.
+            # May search result is catalogue page.
             print("INFO: Try to replace search page to desc page.")
             catalogue_html = search_html
+            catalogue_base_url = search_true_url
             self.saved_name = self.fiction_name + ".txt"
             self.save_path = os.path.join(self.save_path, self.saved_name)
 
@@ -300,9 +323,10 @@ class Downloader(object):
         total, urls = self.parse_catalogue_html(catalogue_html)
         if not total or not urls:
             print("INFO: Not found any chapters.")
+        self._debug_output(urls, "info")
         print(f"--> Total {total} chapters.")
 
-        # Clear exist file.
+        # Clear exist fiction file.
         if os.path.exists(self.saved_name):
             with open(self.saved_name, "w") as f:
                 pass
@@ -312,14 +336,14 @@ class Downloader(object):
         print("\nStart Download:")
         # print("\033[s")  # Mark current position (-2, 1)
         for progress, sub_url in enumerate(urls, start=1):
-            if not URL_RE.match(sub_url):
-                chapter_url = os.path.join(self.base_url, sub_url.lstrip("/"))
-            else:
-                chapter_url = sub_url
+            chapter_url = splicing_url(catalogue_base_url, sub_url)
+            self._debug_output(chapter_url, "url")
 
             # Get one chapter.
             while True:
                 chapter_html, _ = self.get_html(chapter_url)
+                self._debug_output(chapter_url, "html")
+
                 if not chapter_html:
                     try_ans = input(f"Are you want to try again (y/n):").lower()
                     if try_ans in ["y", "Y", "yes", "Yes"]:
@@ -332,25 +356,33 @@ class Downloader(object):
                     break
             chapter_title, chapter_content = self.parse_chapter_html(chapter_html)
             # print(chapter_title, chapter_content)
+            # exit(0)
 
             # Write to file.
             with open(self.save_path, "a+") as f:
                 f.write(chapter_title + "\n")
                 f.write(chapter_content + "\n\n")
 
-            print(
-                "\r-->", progress, chapter_url, "\033[K"
-            )  # Goto the mark position to print and clear subsequent.
-            print(
-                f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
-                f"speed time: {time.time()-start_t:.1f}s",
-                end="",
-            )
+            if not self.debug:
+                print(
+                    "\r-->", progress, chapter_url, "\033[K"
+                )  # Goto the mark position to print and clear subsequent.
+                print(
+                    f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
+                    f"speed time: {time.time()-start_t:.1f}s",
+                    end="",
+                )
             time.sleep(self.download_sleep)
 
         print("\n==END==")
 
     def run(self):
+        if self.auto_load_conf:
+            self.load_conf()
+        if not self.already_loaded_conf:
+            print("The configuration file was not loaded correctly.")
+            return
+
         try:
             self.downloader()
         except (KeyboardInterrupt):
