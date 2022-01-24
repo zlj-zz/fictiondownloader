@@ -2,6 +2,7 @@
 # -*- coding:utf-8 -*-
 
 import os
+import re
 import time
 import json
 import requests
@@ -15,6 +16,10 @@ DEFAULT_CONF_FILE = "noval_conf.json"
 headers = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:80.0) Gecko/20100101 Firefox/80.0",
 }
+
+URL_RE = re.compile(
+    r"(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?"
+)
 
 # 飞山中文
 class Downloader(object):
@@ -31,6 +36,8 @@ class Downloader(object):
         self.saved_name = ""
         self.save_path = ""
 
+        self.search_res_url = ""
+        self.desc_res_url = ""
         self.desc_url = ""
 
         self.auto_load_conf = auto_load_conf
@@ -85,9 +92,8 @@ class Downloader(object):
         self.base_url = conf.get("base_url", "")
 
         search_conf = conf.get("search", {})
-        search_url_is_completed = search_conf.get("url_is_completed", False)
         self.search_url = search_conf.get("url", "")
-        if not search_url_is_completed:
+        if not URL_RE.match(self.search_url):
             self.search_url = self.base_url + self.search_url
         self.search_base_xpath = search_conf.get("base_xpath", "")
         self.search_url_xpath = search_conf.get("url_xpath", "")
@@ -95,11 +101,10 @@ class Downloader(object):
         self.search_author_xpath = search_conf.get("author_xpath", "")
 
         desc_conf = conf.get("desc", {})
-        self.desc_url_is_completed = desc_conf.get("url_is_completed", False)
+        self.catalogue_url_xpath = desc_conf.get("catalogue_url_xpath", "")
         self.chapter_xpath = desc_conf.get("chapter_xpath", "")
 
         chapter_conf = conf.get("chapter", {})
-        self.chapter_url_is_completed = chapter_conf.get("url_is_completed", False)
         self.chapter_title_xpath = chapter_conf.get("title_xpath", "")
         self.chapter_content_xpath = chapter_conf.get("content_xpath", "")
 
@@ -113,11 +118,7 @@ class Downloader(object):
         warns = []
         if not self.fiction_name:
             warns.append("ERROR: Must Give a fiction name.")
-        if not self.base_url and (
-            not search_url_is_completed
-            or not self.desc_url_is_completed
-            or not self.chapter_url_is_completed
-        ):
+        if not self.base_url:
             warns.append(
                 "ERROR: Cannot miss base url, because has url is not completed."
             )
@@ -152,9 +153,13 @@ class Downloader(object):
                 return
 
         html = resp.content.decode(encoding)
-        return html
+        url = resp.url
+        print("true", url)
+
+        return html, url
 
     def parse_search_html(self, html_code: str):
+        # print(html_code)
         html_tree = etree.HTML(html_code)
 
         res = []
@@ -172,6 +177,7 @@ class Downloader(object):
             urls = html_tree.xpath(self.search_url_xpath)
             names = html_tree.xpath(self.search_name_xpath)
             authors = html_tree.xpath(self.search_author_xpath)
+            # print(urls, names, authors)
 
             for url, name, author in zip(urls, names, authors):
                 res.append([url, name, author])
@@ -179,6 +185,14 @@ class Downloader(object):
         return res
 
     def parse_desc_html(self, html_code: str):
+        html_tree = etree.HTML(html_code)
+        res = html_tree.xpath(self.catalogue_url_xpath)
+        if not res:
+            self.desc_res_url = ""
+        else:
+            self.desc_res_url = res[0]
+
+    def parse_catalogue_html(self, html_code: str):
         html_tree = etree.HTML(html_code)
 
         items = html_tree.xpath(self.chapter_xpath)
@@ -231,12 +245,7 @@ class Downloader(object):
         # Set info
         self.saved_name = search_res[idx][1] + ".txt"
         self.save_path = os.path.join(self.save_path, self.saved_name)
-
-        if not self.desc_url_is_completed:
-            self.desc_url = self.base_url + search_res[idx][0]
-        else:
-            self.desc_url = search_res[idx][0]
-        print(f"--> Catalogue url: {self.desc_url}")
+        self.search_res_url = search_res[idx][0]
 
     def process_desc(self):
         pass
@@ -253,21 +262,32 @@ class Downloader(object):
 
         # search fiction.
         print(f"Search fiction {self.fiction_name}:")
-        search_html = self.get_html(self.search_url.format(self.fiction_name))
+        search_html, _ = self.get_html(self.search_url.format(self.fiction_name))
         if not search_html:
             print("INFO: Can't get search result page.")
             return
         self.process_search(search_html)
 
-        if self.desc_url:
-            desc_html = self.get_html(self.desc_url)
-            if not desc_html:
-                print("INFO: Can't get desc page.")
+        if self.search_res_url:
+            print(self.search_res_url)
+            # has desc page.
+            if self.catalogue_url_xpath:
+                desc_html, _ = self.get_html(self.base_url + self.search_res_url)
+                self.parse_desc_html(desc_html)
+                print(self.desc_res_url)
+
+                catalogue_html, _ = self.get_html(self.base_url + self.desc_res_url)
+            else:
+                catalogue_html, _ = self.get_html(self.base_url + self.search_res_url)
+            print(_)
+
+            if not catalogue_html:
+                print("INFO: Can't get catalogue page.")
                 return
         else:
             # may only one result, goto dest page.
             print("INFO: Try to replace search page to desc page.")
-            desc_html = search_html
+            catalogue_html = search_html
             self.saved_name = self.fiction_name + ".txt"
             self.save_path = os.path.join(self.save_path, self.saved_name)
 
@@ -277,7 +297,7 @@ class Downloader(object):
         print(f"--> Save path is:'{self.save_path}'")
 
         # Process chapters.
-        total, urls = self.parse_desc_html(desc_html)
+        total, urls = self.parse_catalogue_html(catalogue_html)
         if not total or not urls:
             print("INFO: Not found any chapters.")
         print(f"--> Total {total} chapters.")
@@ -292,14 +312,14 @@ class Downloader(object):
         print("\nStart Download:")
         # print("\033[s")  # Mark current position (-2, 1)
         for progress, sub_url in enumerate(urls, start=1):
-            if not self.chapter_url_is_completed:
-                chapter_url = self.base_url + sub_url
+            if not URL_RE.match(sub_url):
+                chapter_url = os.path.join(self.base_url, sub_url.lstrip("/"))
             else:
                 chapter_url = sub_url
 
             # Get one chapter.
             while True:
-                chapter_html = self.get_html(chapter_url)
+                chapter_html, _ = self.get_html(chapter_url)
                 if not chapter_html:
                     try_ans = input(f"Are you want to try again (y/n):").lower()
                     if try_ans in ["y", "Y", "yes", "Yes"]:
@@ -387,7 +407,6 @@ if __name__ == "__main__":
         "base_url": "https://www.feishanzw.com",
         "search": {
             "url": "/search.php?search={0}",
-            "url_is_completed": False,
             "base_xpath": "/html/body/section[3]/div/div[1]/table/tbody/tr",
             "url_xpath": "./td[1]/a/@href",
             "name_xpath": "./td[1]/a/text()",
@@ -397,7 +416,6 @@ if __name__ == "__main__":
             "chapter_xpath": "/html/body/section[4]/div/div[1]/ul/li/a/@href",
         },
         "chapter": {
-            "is_completed": False,
             "title_xpath": "/html/body/section[3]/div/div[2]/h1/text()",
             "content_xpath": "/html/body/section[3]/div/div[2]/article/text()",
         },

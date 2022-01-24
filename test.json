@@ -1,18 +1,19 @@
 {
-  "fiction_name": "问道红尘",
-  "base_url": "https://www.feishanzw.com",
+  "fiction_name": "这是我的星球",
+  "base_url": "https://www.kankezw.com",
   "search": {
-    "url": "/search.php?search={0}",
+    "url": "/search.html?searchkey={0}",
     "url_is_completed": false,
-    "base_xpath": "/html/body/section[3]/div/div[1]/table/tbody/tr",
-    "url_xpath": "./td[1]/a/@href",
-    "name_xpath": "./td[1]/a/text()",
-    "author_xpath": "./td[3]/text()"
+    "base_xpath": "",
+    "url_xpath": "/html/body/div/div[3]/form/table/tr[2]/td[2]/a/@href",
+    "name_xpath": "/html/body/div/div[3]/form/table/tr[2]/td[2]/a/text()",
+    "author_xpath": "/html/body/div/div[3]/form/table/tr[2]/td[3]/text()"
   },
   "desc": {
-    "multi_page": true,
+    "catalogue_url_xpath": "/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[1]/a/@href",
+    "multi_page": false,
     "next_page_xpath": "",
-    "chapter_xpath": "/html/body/section[4]/div/div[1]/ul/li/a/@href"
+    "chapter_xpath": "/html/body/div/div[5]/div[1]/ul/li/a/@href"
   },
   "chapter": {
     "is_completed": false,
@@ -21,6 +22,6 @@
   },
   "retry_time": 5,
   "download_sleep": 2,
-  "request_verify": false,
+  "request_verify": true,
   "saved_dir": ""
 }
