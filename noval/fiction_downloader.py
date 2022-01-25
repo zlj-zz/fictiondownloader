@@ -20,15 +20,17 @@ headers = {
 URL_RE = re.compile(
     r"(http|ftp|https):\/\/[\w\-_]+(\.[\w\-_]+)+([\w\-\.,@?^=%&:/~\+#]*[\w\-\@?^=%&/~\+#])?"
 )
+ROOT_URL_RE = re.compile(r"^(((http|ftp|https):\/\/)?[\w\-_]+(\.[\w\-_]+)+)")
 
 
 def splicing_url(base: str, part: str):
     if URL_RE.match(part):
         return part
+    if not URL_RE.match(base):
+        raise ValueError(f"`base` is not a url. {base}")
 
-    # TODO: this not a good way.
-    if part.startswith("/") and len(base.split("/")[3:]) > 1:
-        base = os.path.dirname(os.path.dirname(base))
+    if part.startswith("/"):
+        base = ROOT_URL_RE.findall(base)[0][0]
 
     return os.path.join(base, part.lstrip("/"))
 
@@ -75,6 +77,10 @@ class Downloader(object):
 
         self.debug = debug
 
+    def _debug_output(self, t: str, *msg: str):
+        if self.debug and t in self.debug_display:
+            print(*msg)
+
     def read_conf_from_file(self, conf_path: str) -> dict:
         conf = {}
 
@@ -94,10 +100,6 @@ class Downloader(object):
             conf = read_json(os.path.join(RUN_PATH, "..", DEFAULT_CONF_FILE))
 
         return conf
-
-    def _debug_output(self, msg: str, t: str):
-        if self.debug and t in self.debug_display:
-            print(msg)
 
     def load_conf(self):
         # Try to read config from file if don't incoming config.
@@ -137,8 +139,6 @@ class Downloader(object):
 
         warns = []
         # Process config.
-        if not URL_RE.match(self.search_url):
-            self.search_url = self.base_url + self.search_url
         if not self.request_verify:
             # Don't output warn.
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -158,7 +158,7 @@ class Downloader(object):
             self.already_loaded_conf = True
 
     def get_html(self, url, encoding="utf-8", retry=5):
-        html, url = "", ""
+        html, true_url = "", ""
 
         try:
             resp = requests.get(url, verify=self.request_verify)
@@ -178,10 +178,10 @@ class Downloader(object):
                 print("INFO: connect the url timeout.")
 
         html = resp.content.decode(encoding)
-        url = resp.url
-        # print("true", url)
+        true_url = resp.url
+        # print("true", true_url)
 
-        return html, url
+        return html, true_url
 
     def parse_search_html(self, html_code: str):
         html_tree = etree.HTML(html_code)
@@ -281,10 +281,10 @@ class Downloader(object):
         # Search fiction.
         print(f"Search fiction {self.fiction_name}:")
         search_html, search_true_url = self.get_html(
-            self.search_url.format(self.fiction_name)
+            splicing_url(self.base_url, self.search_url.format(self.fiction_name))
         )
-        self._debug_output(search_html, "html")
-        self._debug_output(search_true_url, "url")
+        self._debug_output("html", "search html:\n", search_html)
+        self._debug_output("url", "search_true_url:", search_true_url)
         if not search_html:
             print("INFO: Can't get search result page.")
             return
@@ -292,19 +292,24 @@ class Downloader(object):
 
         # Get fiction catalogue urls.
         if self.search_res_url:
-            self._debug_output(self.search_res_url, "url")
+            self._debug_output("url", "search_res_url:", self.search_res_url)
             # It's desc page.
             if self.catalogue_url_xpath:
-                desc_html, _ = self.get_html(
-                    splicing_url(self.base_url, self.search_res_url)
+                desc_html, desc_true_url = self.get_html(
+                    splicing_url(search_true_url, self.search_res_url)
                 )
                 self.parse_desc_html(desc_html)
 
                 if not self.desc_res_url:
                     print("ERROR: no catalogue url.")
                     return
+                self._debug_output(
+                    "url",
+                    "desc_res_url:",
+                    self.desc_res_url,
+                )
                 catalogue_html, catalogue_base_url = self.get_html(
-                    splicing_url(self.base_url, self.desc_res_url)
+                    splicing_url(desc_true_url, self.desc_res_url)
                 )
 
             # It's catalogue page.
@@ -333,7 +338,7 @@ class Downloader(object):
         total, urls = self.parse_catalogue_html(catalogue_html)
         if not total or not urls:
             print("INFO: Not found any chapters.")
-        self._debug_output(urls, "info")
+        self._debug_output("info", urls)
         print(f"--> Total {total} chapters.")
 
         # Clear exist fiction file.
@@ -347,12 +352,12 @@ class Downloader(object):
         # print("\033[s")  # Mark current position (-2, 1)
         for progress, sub_url in enumerate(urls, start=1):
             chapter_url = splicing_url(catalogue_base_url, sub_url)
-            self._debug_output(chapter_url, "url")
+            self._debug_output("url", chapter_url)
 
             # Get one chapter.
             while True:
                 chapter_html, _ = self.get_html(chapter_url)
-                self._debug_output(chapter_url, "html")
+                self._debug_output("html", chapter_url)
 
                 if not chapter_html:
                     try_ans = input(f"Are you want to try again (y/n):").lower()
