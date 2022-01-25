@@ -32,6 +32,18 @@ def splicing_url(base: str, part: str):
     return os.path.join(base, part.lstrip("/"))
 
 
+def read_json(json_path: str) -> dict:
+    res = {}
+
+    try:
+        with open(json_path, "r") as f:
+            res = json.load(f)
+    except json.decoder.JSONDecodeError:
+        print("ERROR: The json file is not right.")
+
+    return res
+
+
 class Downloader(object):
     def __init__(
         self,
@@ -64,30 +76,19 @@ class Downloader(object):
                 print("INFO: Config must be a json file.")
 
             # read given config.
-            conf = self.read_json(conf_path)
+            conf = read_json(conf_path)
         elif os.path.isfile(DEFAULT_CONF_FILE):
             # read current path default config.
-            conf = self.read_json(DEFAULT_CONF_FILE)
+            conf = read_json(DEFAULT_CONF_FILE)
         else:
             # read default config.
-            conf = self.read_json(os.path.join(RUN_PATH, "..", DEFAULT_CONF_FILE))
+            conf = read_json(os.path.join(RUN_PATH, "..", DEFAULT_CONF_FILE))
 
         return conf
 
     def _debug_output(self, msg: str, t: str):
         if self.debug and t in self.debug_display:
             print(msg)
-
-    def read_json(self, json_path: str) -> dict:
-        res = {}
-
-        try:
-            with open(json_path, "r") as f:
-                res = json.load(f)
-        except json.decoder.JSONDecodeError:
-            print("ERROR: The json file is not right.")
-
-        return res
 
     def load_conf(self):
         # Try to read config from file if don't incoming config.
@@ -148,7 +149,8 @@ class Downloader(object):
             self.already_loaded_conf = True
 
     def get_html(self, url, encoding="utf-8", retry=5):
-        # TODO:force request. It's not good.
+        html, url = "", ""
+
         try:
             resp = requests.get(url, verify=self.request_verify)
         except requests.exceptions.ConnectTimeout:
@@ -156,7 +158,6 @@ class Downloader(object):
                 return self.get_html(url, encoding, retry - 1)
             else:
                 print("INFO: connect the url timeout.")
-                return
         except requests.exceptions.SSLError:
             print("INFO: SSL certificate verify failed.")
             return ""
@@ -166,7 +167,6 @@ class Downloader(object):
                 return self.get_html(url, encoding, retry - 1)
             else:
                 print("INFO: connect the url timeout.")
-                return
 
         html = resp.content.decode(encoding)
         url = resp.url
