@@ -26,6 +26,7 @@ def splicing_url(base: str, part: str):
     if URL_RE.match(part):
         return part
 
+    # TODO: this not a good way.
     if part.startswith("/") and len(base.split("/")[3:]) > 1:
         base = os.path.dirname(os.path.dirname(base))
 
@@ -33,6 +34,14 @@ def splicing_url(base: str, part: str):
 
 
 def read_json(json_path: str) -> dict:
+    """load a json from file.
+
+    Args:
+        json_path (str): the path of json file.
+
+    Returns:
+        dict: return a empty dict if load failed.
+    """
     res = {}
 
     try:
@@ -72,11 +81,11 @@ class Downloader(object):
         if conf_path:
             if not os.path.isfile(conf_path):
                 print("INFO: Config path is not exist.")
-            if not conf_path.endswith(".json"):
+            elif not conf_path.endswith(".json"):
                 print("INFO: Config must be a json file.")
-
-            # read given config.
-            conf = read_json(conf_path)
+            else:
+                # read given config.
+                conf = read_json(conf_path)
         elif os.path.isfile(DEFAULT_CONF_FILE):
             # read current path default config.
             conf = read_json(DEFAULT_CONF_FILE)
@@ -141,9 +150,9 @@ class Downloader(object):
             )
 
         if warns:
+            # Print warning msg.
             for warn in warns:
                 print(warn)
-            return
         else:
             # Modify conf status.
             self.already_loaded_conf = True
@@ -281,6 +290,7 @@ class Downloader(object):
             return
         self.process_search(search_html)
 
+        # Get fiction catalogue urls.
         if self.search_res_url:
             self._debug_output(self.search_res_url, "url")
             # It's desc page.
@@ -390,7 +400,7 @@ class Downloader(object):
 
 
 def parse_cmd():
-    parser = ArgumentParser(prog="novel", description="", prefix_chars="-")
+    parser = ArgumentParser(prog="noval", description="", prefix_chars="-")
 
     # add command.
     parser.add_argument(
@@ -405,7 +415,7 @@ def parse_cmd():
         "--version",
         action="version",
         help="Show version and exit.",
-        version="novel version 1.0.0",
+        version="noval version 1.0.0",
     )
     # parse command.
     args, unknown = parser.parse_known_args()
