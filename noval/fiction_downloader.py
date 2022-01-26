@@ -77,9 +77,15 @@ class Downloader(object):
 
         self.debug = debug
 
-    def _debug_output(self, t: str, *msg: str):
+    def _debug_output(self, t: str, *msg: str, file: str = ""):
         if self.debug and t in self.debug_display:
-            print(*msg)
+            if file:
+                with open(file, "a+") as f:
+                    for line in msg:
+                        f.write(line)
+                    f.write("\n")
+            else:
+                print(*msg)
 
     def read_conf_from_file(self, conf_path: str) -> dict:
         conf = {}
@@ -286,27 +292,34 @@ class Downloader(object):
         search_html, search_true_url = self.get_html(
             splicing_url(self.base_url, self.search_url.format(self.fiction_name))
         )
-        self._debug_output("html", "search html:\n", search_html)
+        self._debug_output(
+            "html", f"search html {'>'*20}\n", search_html, file="noval_temp.log"
+        )
         self._debug_output("url", "search_true_url:", search_true_url)
         if not search_html:
             print("INFO: Can't get search result page.")
             return
         search_res_url = self.process_search(search_html)
+        self._debug_output("url", "search_res_url:", search_res_url)
 
         # Get fiction catalogue urls.
         if search_res_url:
-            self._debug_output("url", "search_res_url:", search_res_url)
             # It's desc page.
             if self.catalogue_url_xpath:
                 desc_html, desc_true_url = self.get_html(
                     splicing_url(search_true_url, search_res_url)
                 )
+                self._debug_output(
+                    "html", f"desc html {'>'*20}\n", desc_html, file="noval_temp.log"
+                )
+                self._debug_output("url", "desc_true_url:", desc_true_url)
+
                 desc_res_url = self.parse_desc_html(desc_html)
+                self._debug_output("url", "desc_res_url:", desc_res_url)
 
                 if not desc_res_url:
                     print("ERROR: no catalogue url.")
                     return
-                self._debug_output("url", "desc_res_url:", desc_res_url)
                 catalogue_html, catalogue_base_url = self.get_html(
                     splicing_url(desc_true_url, desc_res_url)
                 )
@@ -327,6 +340,11 @@ class Downloader(object):
             catalogue_base_url = search_true_url
             self.saved_name = self.fiction_name + ".txt"
 
+        self._debug_output(
+            "html", f"catalogue html {'>'*20}\n", catalogue_html, file="noval_temp.log"
+        )
+        self._debug_output("url", "catalogue_base_url:", catalogue_base_url)
+
         self.save_path = os.path.join(self.save_path, self.saved_name)
 
         # Output info.
@@ -336,9 +354,9 @@ class Downloader(object):
 
         # Process chapters.
         total, urls = self.parse_catalogue_html(catalogue_html)
+        self._debug_output("info", urls)
         if not total or not urls:
             print("INFO: Not found any chapters.")
-        self._debug_output("info", urls)
         print(f"--> Total {total} chapters.")
 
         # Clear exist fiction file.
@@ -357,7 +375,12 @@ class Downloader(object):
             # Get one chapter.
             while True:
                 chapter_html, _ = self.get_html(chapter_url)
-                self._debug_output("html", chapter_url)
+                self._debug_output(
+                    "html",
+                    f"chapter html {'>'*20}\n",
+                    chapter_html,
+                    file="noval_temp.log",
+                )
 
                 if not chapter_html:
                     try_ans = input(f"Are you want to try again (y/n):").lower()
@@ -370,6 +393,7 @@ class Downloader(object):
                 else:
                     break
             chapter_title, chapter_content = self.parse_chapter_html(chapter_html)
+            self._debug_output("chapter", f"{chapter_title}\n{chapter_content}")
             # print(chapter_title, chapter_content)
             # exit(0)
 
