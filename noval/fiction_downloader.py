@@ -30,6 +30,7 @@ def splicing_url(base: str, part: str):
         raise ValueError(f"`base` is not a url. {base}")
 
     if part.startswith("/"):
+        # get root url.
         base = ROOT_URL_RE.findall(base)[0][0]
 
     return os.path.join(base, part.lstrip("/"))
@@ -51,6 +52,8 @@ def read_json(json_path: str) -> dict:
             res = json.load(f)
     except json.decoder.JSONDecodeError:
         print("ERROR: The json file is not right.")
+    except FileNotFoundError:
+        print(f"ERROR: No such file '{json_path}'")
 
     return res
 
@@ -68,9 +71,6 @@ class Downloader(object):
         self.fiction_name = ""
         self.saved_name = ""
         self.save_path = ""
-
-        self.search_res_url = ""
-        self.desc_res_url = ""
 
         self.auto_load_conf = auto_load_conf
         self.already_loaded_conf = False
@@ -157,7 +157,7 @@ class Downloader(object):
             # Modify conf status.
             self.already_loaded_conf = True
 
-    def get_html(self, url, encoding="utf-8", retry=5):
+    def get_html(self, url, encoding="utf-8", retry=5) -> tuple[str, str]:
         html, true_url = "", ""
 
         try:
@@ -169,21 +169,20 @@ class Downloader(object):
                 print("INFO: connect the url timeout.")
         except requests.exceptions.SSLError:
             print("INFO: SSL certificate verify failed.")
-            return ""
         except requests.exceptions.ConnectionError:
             # TODO: may header alive-keep
             if retry > 0:
                 return self.get_html(url, encoding, retry - 1)
             else:
                 print("INFO: connect the url timeout.")
-
-        html = resp.content.decode(encoding)
-        true_url = resp.url
+        else:
+            html = resp.content.decode(encoding)
+            true_url = resp.url
         # print("true", true_url)
 
         return html, true_url
 
-    def parse_search_html(self, html_code: str):
+    def parse_search_html(self, html_code: str) -> list:
         html_tree = etree.HTML(html_code)
 
         res = []
@@ -208,15 +207,18 @@ class Downloader(object):
 
         return res
 
-    def parse_desc_html(self, html_code: str):
+    def parse_desc_html(self, html_code: str) -> str:
         html_tree = etree.HTML(html_code)
         res = html_tree.xpath(self.catalogue_url_xpath)
-        if not res:
-            self.desc_res_url = ""
-        else:
-            self.desc_res_url = res[0]
 
-    def parse_catalogue_html(self, html_code: str):
+        if not res:
+            desc_res_url = ""
+        else:
+            desc_res_url = res[0]
+
+        return desc_res_url
+
+    def parse_catalogue_html(self, html_code: str) -> tuple[int, str]:
         html_tree = etree.HTML(html_code)
 
         items = html_tree.xpath(self.chapter_xpath)
@@ -226,7 +228,7 @@ class Downloader(object):
 
         return total, urls
 
-    def parse_chapter_html(self, html_code: str):
+    def parse_chapter_html(self, html_code: str) -> tuple[str, str]:
         html_tree = etree.HTML(html_code)
 
         title = html_tree.xpath(self.chapter_title_xpath)[0]
@@ -242,13 +244,13 @@ class Downloader(object):
         )
         return title, chapter
 
-    def process_search(self, search_html: str):
+    def process_search(self, search_html: str) -> str:
         search_res = self.parse_search_html(search_html)
 
         # show search result.
         if not search_res:
             print("INFO: No search results or xpath is not right.")
-            return
+            return ""
 
         for search_no, search_res_item in enumerate(search_res, start=1):
             print(search_no, *search_res_item[1:])
@@ -268,8 +270,9 @@ class Downloader(object):
 
         # Set info
         self.saved_name = search_res[idx][1] + ".txt"
-        self.save_path = os.path.join(self.save_path, self.saved_name)
-        self.search_res_url = search_res[idx][0]
+
+        search_res_url = search_res[idx][0]
+        return search_res_url
 
     def process_desc(self):
         pass
@@ -288,34 +291,30 @@ class Downloader(object):
         if not search_html:
             print("INFO: Can't get search result page.")
             return
-        self.process_search(search_html)
+        search_res_url = self.process_search(search_html)
 
         # Get fiction catalogue urls.
-        if self.search_res_url:
-            self._debug_output("url", "search_res_url:", self.search_res_url)
+        if search_res_url:
+            self._debug_output("url", "search_res_url:", search_res_url)
             # It's desc page.
             if self.catalogue_url_xpath:
                 desc_html, desc_true_url = self.get_html(
-                    splicing_url(search_true_url, self.search_res_url)
+                    splicing_url(search_true_url, search_res_url)
                 )
-                self.parse_desc_html(desc_html)
+                desc_res_url = self.parse_desc_html(desc_html)
 
-                if not self.desc_res_url:
+                if not desc_res_url:
                     print("ERROR: no catalogue url.")
                     return
-                self._debug_output(
-                    "url",
-                    "desc_res_url:",
-                    self.desc_res_url,
-                )
+                self._debug_output("url", "desc_res_url:", desc_res_url)
                 catalogue_html, catalogue_base_url = self.get_html(
-                    splicing_url(desc_true_url, self.desc_res_url)
+                    splicing_url(desc_true_url, desc_res_url)
                 )
 
             # It's catalogue page.
             else:
                 catalogue_html, catalogue_base_url = self.get_html(
-                    splicing_url(self.base_url, self.search_res_url)
+                    splicing_url(self.base_url, search_res_url)
                 )
 
             if not catalogue_html:
@@ -327,7 +326,8 @@ class Downloader(object):
             catalogue_html = search_html
             catalogue_base_url = search_true_url
             self.saved_name = self.fiction_name + ".txt"
-            self.save_path = os.path.join(self.save_path, self.saved_name)
+
+        self.save_path = os.path.join(self.save_path, self.saved_name)
 
         # Output info.
         print("\nOutput Info:")
@@ -342,8 +342,8 @@ class Downloader(object):
         print(f"--> Total {total} chapters.")
 
         # Clear exist fiction file.
-        if os.path.exists(self.saved_name):
-            with open(self.saved_name, "w") as f:
+        if os.path.exists(self.save_path):
+            with open(self.save_path, "w") as f:
                 pass
 
         # Download chapter and save.
