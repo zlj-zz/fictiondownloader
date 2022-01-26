@@ -247,6 +247,7 @@ class Downloader(object):
             chapter.replace("&nbsp", "")
             .replace("<sript>()</sript>", "")
             .replace("<sript>();</sript>", "")
+            .replace("quot", "")
         )
         return title, chapter
 
