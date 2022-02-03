@@ -9,7 +9,8 @@ if sys.argv[-1] == "publish":
     os.system("git push")
     os.system("git push --tags")
 
-    os.system("rm -rf dist/*")
+    if os.path.exists("dist"):
+        os.system("rm -rf dist/*")
     os.system("python setup.py sdist bdist_wheel")
     os.system("twine upload dist/*")
     sys.exit()
