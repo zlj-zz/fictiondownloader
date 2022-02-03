@@ -4,7 +4,7 @@ import noval
 
 # 'setup.py publish' shortcut.
 if sys.argv[-1] == "publish":
-    os.system(f'git commit -am "Bump to {noval.__version__}"')
+    os.system(f"git commit -am 'Bump to {noval.__version__}'")
     os.system(f"git tag {noval.__version__}")
     os.system("git push")
     os.system("git push --tags")
