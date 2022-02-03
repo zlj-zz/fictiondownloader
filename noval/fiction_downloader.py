@@ -58,6 +58,28 @@ def read_json(json_path: str) -> dict:
     return res
 
 
+def format_time(used_time: float) -> str:
+    """Better time format string.
+
+    Args:
+        used_time (float): speeded times.
+
+    Returns:
+        str: formated time.
+    """
+    time_unit = ["second", "mintue", "hour"]
+
+    for i in range(2):
+        if used_time >= 60:
+            used_time /= 60
+        else:
+            break
+    else:
+        i = 2
+
+    return f"{used_time:.2f} {time_unit[i]}"
+
+
 class Downloader(object):
     def __init__(
         self,
@@ -136,6 +158,8 @@ class Downloader(object):
         chapter_conf = conf.get("chapter", {})
         self.chapter_title_xpath = chapter_conf.get("title_xpath", "")
         self.chapter_content_xpath = chapter_conf.get("content_xpath", "")
+        self.start_chapter_index = chapter_conf.get("start_index", 1) - 1
+        self.end_chapter_index = chapter_conf.get("end_index", 0) - 1
 
         self.download_sleep = conf.get("download_sleep", 0.3)
         self.request_verify = conf.get("request_verify", True)
@@ -356,6 +380,8 @@ class Downloader(object):
         # Process chapters.
         total, urls = self.parse_catalogue_html(catalogue_html)
         self._debug_output("info", urls)
+        self._debug_output("info", self.start_chapter_index)
+        self._debug_output("info", self.end_chapter_index)
         if not total or not urls:
             print("INFO: Not found any chapters.")
         print(f"--> Total {total} chapters.")
@@ -369,7 +395,10 @@ class Downloader(object):
         start_t = time.time()
         print("\nStart Download:")
         # print("\033[s")  # Mark current position (-2, 1)
-        for progress, sub_url in enumerate(urls, start=1):
+        for progress, sub_url in enumerate(
+            urls[self.start_chapter_index : self.end_chapter_index],
+            start=self.start_chapter_index + 1,
+        ):
             chapter_url = splicing_url(catalogue_base_url, sub_url)
             self._debug_output("url", chapter_url)
 
@@ -409,7 +438,7 @@ class Downloader(object):
                 )  # Goto the mark position to print and clear subsequent.
                 print(
                     f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
-                    f"speed time: {time.time()-start_t:.1f}s",
+                    f"speed time: {format_time(time.time()-start_t)}",
                     end="",
                 )
             time.sleep(self.download_sleep)
