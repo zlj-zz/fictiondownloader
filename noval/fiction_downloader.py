@@ -167,22 +167,32 @@ class Downloader(object):
         self.debug = self.debug if self.debug else conf.get("debug", False)
         self.debug_display = conf.get("debug_display", "").replace(" ", "").split(",")
 
-        warns = []
+        warns, errors = [], []
         # Process config.
         if not self.request_verify:
             # Don't output warn.
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            warns.append("INFO: SSH verify closed.")
+        if self.download_sleep > 0:
+            warns.append(f"INFO: Each chapter download sleep {self.download_sleep}s.")
+        else:
+            errors.append(
+                "ERROR: Download sleep is not right, it should bigger than 0."
+            )
         if not self.fiction_name:
-            warns.append("ERROR: Must Give a fiction name.")
+            errors.append("ERROR: Must Give a fiction name.")
         if not self.base_url:
-            warns.append(
+            errors.append(
                 "ERROR: Cannot miss base url, because has url is not completed."
             )
 
-        if warns:
+        for warn in warns:
+            print(warn)
+
+        if errors:
             # Print warning msg.
-            for warn in warns:
-                print(warn)
+            for err in errors:
+                print(err)
         else:
             # Modify conf status.
             self.already_loaded_conf = True
@@ -209,6 +219,7 @@ class Downloader(object):
             html = resp.content.decode(encoding)
             true_url = resp.url
         # print("true", true_url)
+        self._debug_output("html", f"html {'>'*20}\n", html, file="noval_temp.log")
 
         return html, true_url
 
@@ -317,9 +328,6 @@ class Downloader(object):
         search_html, search_true_url = self.get_html(
             splicing_url(self.base_url, self.search_url.format(self.fiction_name))
         )
-        self._debug_output(
-            "html", f"search html {'>'*20}\n", search_html, file="noval_temp.log"
-        )
         self._debug_output("url", "search_true_url:", search_true_url)
         if not search_html:
             print("INFO: Can't get search result page.")
@@ -333,9 +341,6 @@ class Downloader(object):
             if self.catalogue_url_xpath:
                 desc_html, desc_true_url = self.get_html(
                     splicing_url(search_true_url, search_res_url)
-                )
-                self._debug_output(
-                    "html", f"desc html {'>'*20}\n", desc_html, file="noval_temp.log"
                 )
                 self._debug_output("url", "desc_true_url:", desc_true_url)
 
@@ -365,9 +370,6 @@ class Downloader(object):
             catalogue_base_url = search_true_url
             self.saved_name = self.fiction_name + ".txt"
 
-        self._debug_output(
-            "html", f"catalogue html {'>'*20}\n", catalogue_html, file="noval_temp.log"
-        )
         self._debug_output("url", "catalogue_base_url:", catalogue_base_url)
 
         self.save_path = os.path.join(self.save_path, self.saved_name)
@@ -405,12 +407,6 @@ class Downloader(object):
             # Get one chapter.
             while True:
                 chapter_html, _ = self.get_html(chapter_url)
-                self._debug_output(
-                    "html",
-                    f"chapter html {'>'*20}\n",
-                    chapter_html,
-                    file="noval_temp.log",
-                )
 
                 if not chapter_html:
                     try_ans = input(f"Are you want to try again (y/n):").lower()
