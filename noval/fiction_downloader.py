@@ -470,7 +470,7 @@ def parse_cmd():
         "--version",
         action="version",
         help="Show version and exit.",
-        version="noval version 1.0.0",
+        version="noval version unknown",
     )
     # parse command.
     args, unknown = parser.parse_known_args()
