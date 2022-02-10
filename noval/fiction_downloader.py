@@ -5,6 +5,7 @@ import os
 import re
 import time
 import json
+from typing import Any
 import requests
 import urllib3
 from lxml import etree
@@ -99,6 +100,15 @@ class Downloader(object):
 
         self.debug = debug
 
+    def _set_attr(self, attr_name: str, value: Any, force: bool = True):
+        try:
+            _ = self.__getattribute__(attr_name)
+        except AttributeError:
+            self.__setattr__(attr_name, value)
+        else:
+            if not _ or force:
+                self.__setattr__(attr_name, value)
+
     def _debug_output(self, t: str, *msg: str, file: str = ""):
         if self.debug and t in self.debug_display:
             if file:
@@ -140,32 +150,34 @@ class Downloader(object):
             return
 
         # Parse config.
-        if not self.fiction_name:
-            self.fiction_name = conf.get("fiction_name", "")
+        # yapf: disable
+        self._set_attr('fiction_name', conf.get("fiction_name", ""), force=False)
         self.base_url = conf.get("base_url", "")
 
         search_conf = conf.get("search", {})
-        self.search_url = search_conf.get("url", "")
-        self.search_base_xpath = search_conf.get("base_xpath", "")
-        self.search_url_xpath = search_conf.get("url_xpath", "")
-        self.search_name_xpath = search_conf.get("name_xpath", "")
-        self.search_author_xpath = search_conf.get("author_xpath", "")
+        self._set_attr('search_url', search_conf.get("url", ""))
+        self._set_attr('search_base_xpath', search_conf.get("base_xpath", ""))
+        self._set_attr('search_url_xpath', search_conf.get("url_xpath", ""))
+        self._set_attr('search_name_xpath', search_conf.get("name_xpath", ""))
+        self._set_attr('search_author_xpath', search_conf.get("author_xpath", ""))
 
         desc_conf = conf.get("desc", {})
-        self.catalogue_url_xpath = desc_conf.get("catalogue_url_xpath", "")
-        self.chapter_xpath = desc_conf.get("chapter_xpath", "")
+        self._set_attr('catalogue_url_xpath', desc_conf.get("catalogue_url_xpath", ""))
+        self._set_attr('chapter_xpath', desc_conf.get("chapter_xpath", ""))
 
         chapter_conf = conf.get("chapter", {})
-        self.chapter_title_xpath = chapter_conf.get("title_xpath", "")
-        self.chapter_content_xpath = chapter_conf.get("content_xpath", "")
-        self.start_chapter_index = chapter_conf.get("start_index", 1) - 1
-        self.end_chapter_index = chapter_conf.get("end_index", 0) - 1
+        self._set_attr('chapter_title_xpath', chapter_conf.get("title_xpath", ""))
+        self._set_attr('chapter_content_xpath', chapter_conf.get("content_xpath", ""))
+        self._set_attr('start_chapter_index', chapter_conf.get("start_index", 1) - 1,force=False)
+        self._set_attr('end_chapter_index', chapter_conf.get("end_index", 0) - 1, force=False)
 
         self.download_sleep = conf.get("download_sleep", 0.3)
         self.request_verify = conf.get("request_verify", True)
         self.retry_times = conf.get("retry_times", 5)
-        self.debug = self.debug if self.debug else conf.get("debug", False)
+        self._set_attr('append_mode', conf.get("append_mode"), force=False)
+        self._set_attr('debug', conf.get("debug", False), force=False)
         self.debug_display = conf.get("debug_display", "").replace(" ", "").split(",")
+        # yapf: enable
 
         warns, errors = [], []
         # Process config.
@@ -173,6 +185,10 @@ class Downloader(object):
             # Don't output warn.
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             warns.append("INFO: SSH verify closed.")
+        if self.debug:
+            warns.append("INFO: Running in debug mode.")
+        if self.append_mode:
+            warns.append("INFO: Running in append mode.")
         if self.download_sleep > 0:
             warns.append(f"INFO: Each chapter download sleep {self.download_sleep}s.")
         else:
@@ -196,6 +212,8 @@ class Downloader(object):
         else:
             # Modify conf status.
             self.already_loaded_conf = True
+
+        self._debug_output("info", self.__dict__)
 
     def get_html(self, url, encoding="utf-8", retry=5) -> tuple[str, str]:
         html, true_url = "", ""
@@ -322,7 +340,7 @@ class Downloader(object):
     def process_chapter(self):
         pass
 
-    def downloader(self):
+    def download(self):
         # Search fiction.
         print(f"Search fiction {self.fiction_name}:")
         search_html, search_true_url = self.get_html(
@@ -389,7 +407,7 @@ class Downloader(object):
         print(f"--> Total {total} chapters.")
 
         # Clear exist fiction file.
-        if os.path.exists(self.save_path):
+        if not self.append_mode and os.path.exists(self.save_path):
             with open(self.save_path, "w") as f:
                 pass
 
@@ -449,7 +467,7 @@ class Downloader(object):
             return
 
         try:
-            self.downloader()
+            self.download()
         except (KeyboardInterrupt):
             print("\nManual stop.")
 
@@ -459,11 +477,15 @@ def parse_cmd():
 
     # add command.
     parser.add_argument(
-        "-n", "--name", type=str, metavar="fiction_name", help="custom fiction name."
+        "-n", "--name", metavar="fiction_name", help="custom fiction name."
     )
     parser.add_argument("--conf", type=str, metavar="path", help="custom config path.")
+    parser.add_argument("--save-to", metavar="path", help="custom fiction save path.")
+    parser.add_argument("--range", help='Download chapter range, like: --range "10,20"')
     parser.add_argument(
-        "--save-to", type=str, metavar="path", help="custom fiction save path."
+        "--append",
+        action="store_true",
+        help="Whether it is in append mode. It is recreated by default.",
     )
     parser.add_argument(
         "-v",
@@ -482,6 +504,7 @@ def parse_cmd():
 
 def main():
     args, unknown = parse_cmd()
+    print(args)
     if unknown:
         print(f"Not support command: {unknown}")
 
@@ -493,7 +516,17 @@ def main():
         downloader.conf_path = args.conf
     if args.save_to:
         downloader.save_path = args.save_to
+    if args.range:
+        if re.match(r"^\s*\d+\s*,\s*\d+\s*$", args.range):
+            range_ = args.range.replace(" ", "").split(",")
+            downloader.start_chapter_index = int(range_[0]) - 1
+            downloader.end_chapter_index = int(range_[1]) - 1
+        else:
+            print("--range is not right.")
+    if args.append:
+        downloader.append_mode = True
 
+    # Handle load config.
     downloader.load_conf()
     downloader.run()
 

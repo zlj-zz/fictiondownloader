@@ -16,8 +16,9 @@ if sys.argv[-1] == "publish":
     sys.exit()
 
 PYTHON_VERSION = sys.version_info[:3]
-if PYTHON_VERSION < (3, 8, 0):
-    print("Not support python version < 3.8")
+SUPPORT_VERSION = (3, 8, 0)
+if PYTHON_VERSION < SUPPORT_VERSION:
+    print("Not support python version < {}".format(".".join(SUPPORT_VERSION)))
     exit(0)
 
 try:
@@ -26,6 +27,8 @@ except Exception:
     LONG_DESCRIPTION = """# noval
 
 Configurable novel Downloader.
+
+> Can not load description.
 ```
     """
 
