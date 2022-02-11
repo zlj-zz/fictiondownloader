@@ -1,27 +1,31 @@
 {
-  "fiction_name": "Fiction name.(OPTION)",
-  "base_url": "Url of novel website.(MUST)",
-  "search": {
-    "url": "Search url.(MUST)",
-    "base_xpath": "Base xpath of url, name and author.(OPTION)",
-    "url_xpath": "Fiction url xpath.(MUST)",
-    "name_xpath": "Fiction name xpath.(MUST)",
-    "author_xpath": "Fiction author xpath.(MUST)"
-  },
-  "desc": {
-    "catalogue_url_xpath": "If this parameter is not available, the search result is the directory page.(OPTION)",
-    "multi_page": "Whether the directory is paged.(bool, default is false)",
-    "next_page_xpath": "Next desc page xpath.(OPTION)",
-    "chapter_xpath": "Each chapter xpath.(MUST)"
-  },
-  "chapter": {
-    "title_xpath": "Title xpath.(MUST)",
-    "content_xpath": "Chapter content xpath.(MUST)"
-  },
-  "retry_time": "Page access retries.(number, default is 5 times)",
-  "download_sleep": "Download interval of each chapter.(number, default is 0.3s)",
-  "request_verify": false,
-  "saved_dir": "Novel storage directory.(Default is current dir, OPTION)",
-  "debug": "(bool, default is false) Whether run in debug mode.",
-  "debug_display": "(string, OPTION) Debug mode display info type, like: 'html,url,xpath,info',"
+    "fiction_name": "Fiction name.(OPTION)",
+    "base_url": "Url of novel website.(MUST)",
+    "search": {
+        "url": "Search url.(MUST)",
+        "base_xpath": "Base xpath of url, name and author.(OPTION)",
+        "url_xpath": "Fiction url xpath.(MUST)",
+        "name_xpath": "Fiction name xpath.(MUST)",
+        "author_xpath": "Fiction author xpath.(MUST)"
+    },
+    "desc": {
+        "catalogue_url_xpath": "If this parameter is not available, the search result is the directory page.(OPTION)",
+        "multi_page": "Whether the directory is paged.(bool, default is false)",
+        "next_page_xpath": "Next desc page xpath.(OPTION)",
+        "chapter_xpath": "Each chapter xpath.(MUST)"
+    },
+    "chapter": {
+        "title_xpath": "Title xpath.(MUST)",
+        "content_xpath": "Chapter content xpath.(MUST)",
+        "start_index": "start chapter number.(int)",
+        "end_index": "over chapter number.(int)"
+    },
+    "retry_time": "Page access retries.(number, default is 5 times)",
+    "download_sleep": "Download interval of each chapter.(number, default is 0.3s)",
+    "request_verify": false,
+    "saved_dir": "Novel storage directory.(Default is current dir, OPTION)",
+    "split_part": "Download segmented storage.(int, OPTION)",
+    "append_mode": "Whether it is in append mode. It is recreated by default.(bool, default is false)",
+    "debug": "(bool, default is false) Whether run in debug mode.",
+    "debug_display": "(string, OPTION) Debug mode display info type, like: 'html,url,xpath,info',"
 }

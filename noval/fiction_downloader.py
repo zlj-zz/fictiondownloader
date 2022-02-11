@@ -24,6 +24,16 @@ URL_RE = re.compile(
 ROOT_URL_RE = re.compile(r"^(((http|ftp|https):\/\/)?[\w\-_]+(\.[\w\-_]+)+)")
 
 
+def slice_list(temp_list: list, n: int):
+    """
+    Args:
+        temp_list (list):
+        n (int): number of each part.
+    """
+    for i in range(0, len(temp_list), n):
+        yield temp_list[i : i + n]
+
+
 def splicing_url(base: str, part: str):
     if URL_RE.match(part):
         return part
@@ -169,12 +179,13 @@ class Downloader(object):
         self._set_attr('chapter_title_xpath', chapter_conf.get("title_xpath", ""))
         self._set_attr('chapter_content_xpath', chapter_conf.get("content_xpath", ""))
         self._set_attr('start_chapter_index', chapter_conf.get("start_index", 1) - 1,force=False)
-        self._set_attr('end_chapter_index', chapter_conf.get("end_index", 0) - 1, force=False)
+        self._set_attr('end_chapter_index', chapter_conf.get("end_index", 100000) - 1, force=False)
 
         self.download_sleep = conf.get("download_sleep", 0.3)
         self.request_verify = conf.get("request_verify", True)
         self.retry_times = conf.get("retry_times", 5)
-        self._set_attr('append_mode', conf.get("append_mode"), force=False)
+        self._set_attr('split_part', conf.get('split_part', 1), force=False)
+        self._set_attr('append_mode', conf.get("append_mode", False), force=False)
         self._set_attr('debug', conf.get("debug", False), force=False)
         self.debug_display = conf.get("debug_display", "").replace(" ", "").split(",")
         # yapf: enable
@@ -340,6 +351,53 @@ class Downloader(object):
     def process_chapter(self):
         pass
 
+    def download_chapters(self, base_url: str, urls: list, save_path: str):
+        # Clear exist fiction file.
+        if not self.append_mode and os.path.exists(save_path):
+            with open(save_path, "w") as f:
+                pass
+
+        total = len(urls)
+        start_t = time.time()
+        for progress, sub_url in enumerate(urls, start=1):
+            chapter_url = splicing_url(base_url, sub_url)
+            self._debug_output("url", chapter_url)
+
+            # Get one chapter.
+            while True:
+                chapter_html, _ = self.get_html(chapter_url)
+
+                if not chapter_html:
+                    try_ans = input(f"Are you want to try again (y/n):").lower()
+                    if try_ans in ["y", "Y", "yes", "Yes"]:
+                        print("\033[1A\rRe-trying...\033[K")
+                        continue
+                    else:
+                        print("INFO: Can't get current chapter page.")
+                        return
+                else:
+                    break
+            chapter_title, chapter_content = self.parse_chapter_html(chapter_html)
+            self._debug_output("chapter", f"{chapter_title}\n{chapter_content}")
+            # print(chapter_title, chapter_content)
+            # exit(0)
+
+            # Write to file.
+            with open(save_path, "a+") as f:
+                f.write(chapter_title + "\n")
+                f.write(chapter_content + "\n\n")
+
+            if not self.debug:
+                print(
+                    "\r-->", progress, chapter_url, "\033[K"
+                )  # Goto the mark position to print and clear subsequent.
+                print(
+                    f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
+                    f"speed time: {format_time(time.time()-start_t)}",
+                    end="",
+                )
+            time.sleep(self.download_sleep)
+
     def download(self):
         # Search fiction.
         print(f"Search fiction {self.fiction_name}:")
@@ -406,56 +464,23 @@ class Downloader(object):
             print("INFO: Not found any chapters.")
         print(f"--> Total {total} chapters.")
 
-        # Clear exist fiction file.
-        if not self.append_mode and os.path.exists(self.save_path):
-            with open(self.save_path, "w") as f:
-                pass
-
         # Download chapter and save.
-        start_t = time.time()
         print("\nStart Download:")
-        # print("\033[s")  # Mark current position (-2, 1)
-        for progress, sub_url in enumerate(
-            urls[self.start_chapter_index : self.end_chapter_index],
-            start=self.start_chapter_index + 1,
-        ):
-            chapter_url = splicing_url(catalogue_base_url, sub_url)
-            self._debug_output("url", chapter_url)
+        # Ranger option.
+        urls = urls[self.start_chapter_index : self.end_chapter_index]
+        # Split part option.
+        if self.split_part == 1:
+            self.download_chapters(catalogue_base_url, urls, self.save_path)
+        else:
+            # INFO: multi part not allowed with append mode. It's not a mandatory rule.
+            part_id = 1
+            for part_urls in slice_list(urls, total // self.split_part + 1):
+                part_save_path = self.save_path.replace(".txt", f"_{part_id}.txt")
+                print(f":: Download part to: {part_save_path}")
 
-            # Get one chapter.
-            while True:
-                chapter_html, _ = self.get_html(chapter_url)
-
-                if not chapter_html:
-                    try_ans = input(f"Are you want to try again (y/n):").lower()
-                    if try_ans in ["y", "Y", "yes", "Yes"]:
-                        print("\033[1A\rRe-trying...\033[K")
-                        continue
-                    else:
-                        print("INFO: Can't get current chapter page.")
-                        return
-                else:
-                    break
-            chapter_title, chapter_content = self.parse_chapter_html(chapter_html)
-            self._debug_output("chapter", f"{chapter_title}\n{chapter_content}")
-            # print(chapter_title, chapter_content)
-            # exit(0)
-
-            # Write to file.
-            with open(self.save_path, "a+") as f:
-                f.write(chapter_title + "\n")
-                f.write(chapter_content + "\n\n")
-
-            if not self.debug:
-                print(
-                    "\r-->", progress, chapter_url, "\033[K"
-                )  # Goto the mark position to print and clear subsequent.
-                print(
-                    f"\r:: Percent of downloaded chapters: {progress / total * 100:.2f}%, "
-                    f"speed time: {format_time(time.time()-start_t)}",
-                    end="",
-                )
-            time.sleep(self.download_sleep)
+                self.download_chapters(catalogue_base_url, part_urls, part_save_path)
+                part_id += 1
+                print("")
 
         print("\n==END==")
 
@@ -477,12 +502,14 @@ def parse_cmd():
 
     # add command.
     parser.add_argument(
-        "-n", "--name", metavar="fiction_name", help="custom fiction name."
+        "-n", "--name", metavar="fiction_name", type=str, help="custom fiction name."
     )
-    parser.add_argument("--conf", type=str, metavar="path", help="custom config path.")
+    parser.add_argument("--conf", metavar="path", help="custom config path.")
     parser.add_argument("--save-to", metavar="path", help="custom fiction save path.")
     parser.add_argument("--range", help='Download chapter range, like: --range "10,20"')
-    parser.add_argument(
+    exc_group = parser.add_mutually_exclusive_group()
+    exc_group.add_argument("--split", type=int, help="Download segmented storage.")
+    exc_group.add_argument(
         "--append",
         action="store_true",
         help="Whether it is in append mode. It is recreated by default.",
@@ -504,7 +531,7 @@ def parse_cmd():
 
 def main():
     args, unknown = parse_cmd()
-    print(args)
+    # print(args)
     if unknown:
         print(f"Not support command: {unknown}")
 
@@ -523,6 +550,8 @@ def main():
             downloader.end_chapter_index = int(range_[1]) - 1
         else:
             print("--range is not right.")
+    if args.split:
+        downloader.split_part = args.split
     if args.append:
         downloader.append_mode = True
 

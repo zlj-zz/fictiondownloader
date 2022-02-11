@@ -21,7 +21,7 @@
   "retry_times": 5,
   "download_sleep": 0.2,
   "request_verify": true,
-  "debug": true,
+  "debug": false,
   "debug_display": "url,xpath,info",
   "saved_dir": ""
 }
