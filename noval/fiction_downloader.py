@@ -5,6 +5,7 @@ import os
 import re
 import time
 import json
+import functools
 from typing import Any
 import requests
 import urllib3
@@ -291,10 +292,20 @@ class Downloader(object):
     def parse_catalogue_html(self, html_code: str) -> tuple[int, str]:
         html_tree = etree.HTML(html_code)
 
-        items = html_tree.xpath(self.chapter_xpath)
-        urls = sorted(items)
+        urls = html_tree.xpath(self.chapter_xpath)
 
-        total = len(items)
+        def _cmp(a, b):
+            cur_ = a.split("/")[-1]
+            next_ = b.split("/")[-1]
+
+            cur_ = int(re.findall(r"\d+", cur_)[0])
+            next_ = int(re.findall(r"\d+", next_)[0])
+
+            return cur_ - next_
+
+        # urls = sorted(urls, key=functools.cmp_to_key(_cmp))
+
+        total = len(urls)
 
         return total, urls
 
