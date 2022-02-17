@@ -313,6 +313,8 @@ class Downloader(object):
             .replace("<sript>();</sript>", "")
             .replace("quot", "")
         )
+        chapter = re.sub(r"<[a-z\d]+\/?>", "", chapter)
+
         return title, chapter
 
     def process_search(self, search_html: str) -> str:
