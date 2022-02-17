@@ -496,6 +496,7 @@ class Downloader(object):
                 print("")
 
         print("\n==END==")
+        return True
 
     def run(self):
         if self.auto_load_conf:
@@ -505,9 +506,10 @@ class Downloader(object):
             return
 
         try:
-            self.download()
+            return self.download()
         except (KeyboardInterrupt):
             print("\nManual stop.")
+            return True
 
 
 def parse_cmd():
