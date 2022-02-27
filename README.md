@@ -8,23 +8,26 @@
 |_| |_|\___/ \_/ \__,_|_| Configurable novel downloader.
 ```
 
+![demo pic](https://github.com/zlj-zz/noval/blob/main/example/demo.png)
+
 ## Usage
 
 `noval -h` to get help message.
 
 ```
-usage: noval [-h] [-n fiction_name] [--conf path] [--save-to path] [--range RANGE] [--split SPLIT | --append] [-v]
+usage: noval [-h] [--sep SEP] [--save-to path] [--range RANGE RANGE] [--split SPLIT | --append] [-v] name
+
+positional arguments:
+  name                 fiction name.
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -n fiction_name, --name fiction_name
-                        custom fiction name.
-  --conf path           custom config path.
-  --save-to path        custom fiction save path.
-  --range RANGE         Download chapter range, like: --range "10,20"
-  --split SPLIT         Download segmented storage.
-  --append              Whether it is in append mode. It is recreated by default.
-  -v, --version         Show version and exit.
+  -h, --help           show this help message and exit
+  --sep SEP            sleep time.
+  --save-to path       custom fiction save path.
+  --range RANGE RANGE  Download chapter range, like:`--range 10 20`
+  --split SPLIT        Download segmented storage.
+  --append             Whether it is in append mode. It is recreated by default.
+  -v, --version        Show version and exit.
 ```
 
 ## Installation
