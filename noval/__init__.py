@@ -1,5 +1,5 @@
 __project__ = "noval"
-__version__ = "2022.02.27"
+__version__ = "2022.02.28"
 __url__ = "https://github.com/zlj-zz/noval.git"
 __uri__ = __url__
 

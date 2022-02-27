@@ -36,7 +36,7 @@ def parse_cmd():
         "--version",
         action="version",
         help="Show version and exit.",
-        version="noval version unknown",
+        version="noval version: 2022.02.28",
     )
 
     # parse command.
