@@ -1,2 +1,4 @@
 requests
 lxml==4.6.2
+numpy==1.22.2
+rich==11.2.0

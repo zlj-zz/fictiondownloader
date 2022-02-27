@@ -57,11 +57,11 @@ setup(
         "Operating System :: MacOS",
         "Operating System :: Microsoft :: Windows",
     ],
-    data_files=["conf/noval_conf.json"],
-    install_requires=["requests", "lxml"],
+    # data_files=["conf/noval_conf.json"],
+    install_requires=["requests", "lxml", "numpy", "rich"],
     entry_points="""
         [console_scripts]
-        noval=noval.fiction_downloader:main
+        noval=noval.main:main
     """,
     python_requires=">=3.8",
 )

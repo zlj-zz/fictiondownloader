@@ -1,6 +1,6 @@
 __project__ = "noval"
-__version__ = "2022.02.15"
-__url__ = "https://github.com/zlj-zz/fictiondownloader.git"
+__version__ = "2022.02.27"
+__url__ = "https://github.com/zlj-zz/noval.git"
 __uri__ = __url__
 
 __author__ = "Zachary Zhang"
