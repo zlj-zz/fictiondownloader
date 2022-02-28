@@ -34,3 +34,10 @@ DATETIME_PATTERN = [
     "(\d{2}年\d{1,2}月\d{1,2}日)",
     "(\d{1,2}月\d{1,2}日)",
 ]
+
+DEFAULT_HTM = """\
+<html>
+	<body>
+	</body>
+</html>
+"""

@@ -4,11 +4,20 @@ from argparse import ArgumentParser, Namespace
 from .downloader import Downloader
 from .extractor import Extractor
 from .utils import splicing_url, slice_list
+from .const import DEFAULT_HTM
 
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.progress import track
+from rich.live import Live
+from rich.progress import (
+    track,
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 
 def parse_cmd():
@@ -70,14 +79,16 @@ def run(conf: dict):
     search_res = []
 
     with console.status(
-        f"[bold green]Search '{fiction_name}'...", spinner="shark"
+        f"Search: [bold green]'{fiction_name}'...", spinner="shark"
     ) as st:
         for search_url in search_list:
             html, _ = dr.get_html(search_url.format(fiction_name))
-            search_res.extend(er.extract_search(html, fiction_name, search_url))
+            search_res.extend(
+                er.extract_search(html or DEFAULT_HTM, fiction_name, search_url)
+            )
 
     if not search_res:
-        print("Can't get search result page.")
+        console.print("[red]Can't get search result page.")
         return
 
     # Show search result.
@@ -116,17 +127,20 @@ def run(conf: dict):
     )
 
     html, u = dr.get_html(next_url)
-    res = er.extract_chapters(html, u)
+    res = er.extract_chapters(html or DEFAULT_HTM, u)
 
     if not res:
-        next_url = er.extract_detail(html, u)
+        next_url = er.extract_detail(html or DEFAULT_HTM, u)
         if next_url:
+            console.print(f"Get next url: {next_url}")
             html, u = dr.get_html(next_url)
-            res = er.extract_chapters(html, u)
+            res = er.extract_chapters(html or DEFAULT_HTM, u)
 
     if not res:
-        print("No chapter found!")
+        console.print("[red]No chapter found!")
         return
+
+    console.print(f"{len(res):=^100}")
 
     if chapter_range:
         res = res[chapter_range[0] - 1 : chapter_range[1] - 1]
@@ -174,7 +188,7 @@ def run(conf: dict):
             )
             part_id += 1
     else:
-        _download_chapters(res, f"{real_path}.txt", "Download...")
+        _download_chapters(res, f"{real_path}.txt", "[green]Download...")
 
 
 def main():

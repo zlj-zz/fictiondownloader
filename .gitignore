@@ -186,3 +186,4 @@ cython_debug/
 
 what.json
 test.py
+test_rich.py
