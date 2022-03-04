@@ -1,12 +1,12 @@
 import textwrap, time, os
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 
 from .downloader import Downloader
 from .extractor import Extractor
 from .utils import splicing_url, slice_list
 from .const import DEFAULT_HTM
 
-from rich.console import Console
+from rich.console import Console, Group
 from rich.table import Table
 from rich.panel import Panel
 from rich.live import Live
@@ -17,6 +17,7 @@ from rich.progress import (
     SpinnerColumn,
     TextColumn,
     TimeElapsedColumn,
+    TimeRemainingColumn,
 )
 
 
@@ -146,37 +147,63 @@ def run(conf: dict):
         res = res[chapter_range[0] - 1 : chapter_range[1] - 1]
 
     # Download
-    def _download_chapters(res, path: str, desc: str = "download"):
+    def _download_chapters(
+        res, path: str, desc: str = "download", over_desc: str = "downloaded"
+    ):
         if not is_append:
             with open(path, "w") as f:
                 pass
 
-        for chapter_name, url in track(res, desc, console=console):
-            console.print(chapter_name, url)
+        current_show_progress = Progress(
+            TimeElapsedColumn(),
+            TextColumn("{task.description}"),
+        )
+        overall_progress = Progress(
+            TextColumn("{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
+        )
+        progress_group = Group(current_show_progress, overall_progress)
 
-            while True:
-                html, _ = dr.get_html(url)
+        with Live(progress_group):
+            current_show_id = current_show_progress.add_task("")
+            overall_task_id = overall_progress.add_task(desc, total=len(res))
+            # for chapter_name, url in track(res, desc, console=console):
+            for idx, (chapter_name, url) in enumerate(res):
+                # console.print(chapter_name, url)
+                current_show_progress.update(
+                    current_show_id, description=f"{idx}-{chapter_name} {url}"
+                )
 
-                if not html:
-                    try_ans = input(f"Are you want to try again (y/n):").lower()
-                    if try_ans in ["y", "Y", "yes", "Yes"]:
-                        print("\033[1A\rRe-trying...\033[K")
-                        continue
+                while True:
+                    html, _ = dr.get_html(url)
+
+                    if not html:
+                        try_ans = input(f"Are you want to try again (y/n):").lower()
+                        if try_ans in ["y", "Y", "yes", "Yes"]:
+                            print("\033[1A\rRe-trying...\033[K")
+                            continue
+                        else:
+                            print("INFO: Can't get current chapter page.")
+                            return
                     else:
-                        print("INFO: Can't get current chapter page.")
-                        return
-                else:
-                    break
+                        break
 
-            content = er.extract_content(html)
+                content = er.extract_content(html)
 
-            if not content:
-                continue
+                if not content:
+                    continue
 
-            chapter_content = f"{chapter_name}\n{textwrap.indent(content,'  ')}\n\n"
-            dr.save(path, chapter_content, mode="a+")
+                chapter_content = f"{chapter_name}\n{textwrap.indent(content,'  ')}\n\n"
+                dr.save(path, chapter_content, mode="a+")
 
-            time.sleep(sep)
+                overall_progress.update(overall_task_id, advance=1)
+                time.sleep(sep)
+
+            overall_progress.update(overall_task_id, description=over_desc)
+            current_show_progress.stop_task(current_show_id)
+            current_show_progress.update(current_show_id, visible=False)
 
     if split and split > 1:
         part_id = 1
@@ -184,11 +211,14 @@ def run(conf: dict):
             _download_chapters(
                 part_res,
                 f"{real_path}.txt".replace(".txt", f"_{part_id}.txt"),
-                f"Download part {part_id}...",
+                f"[green bold]Download part {part_id}...",
+                f"[green bold]Part {part_id} downloaded",
             )
             part_id += 1
     else:
-        _download_chapters(res, f"{real_path}.txt", "[green]Download...")
+        _download_chapters(
+            res, f"{real_path}.txt", "[green bold]Download...", "[green bold]Downloaded"
+        )
 
 
 def main():
