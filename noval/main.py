@@ -173,7 +173,7 @@ def run(conf: dict):
             for idx, (chapter_name, url) in enumerate(res):
                 # console.print(chapter_name, url)
                 current_show_progress.update(
-                    current_show_id, description=f"{idx}-{chapter_name} {url}"
+                    current_show_id, description=f"「{idx:^7}」 {chapter_name} {url}"
                 )
 
                 while True:
