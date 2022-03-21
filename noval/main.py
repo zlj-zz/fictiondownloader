@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-from .downloader import Downloader
+from .terminal import entry
 
 
 def parse_cmd():
@@ -39,7 +39,6 @@ def parse_cmd():
 
 
 def main():
-    downloader = Downloader(verify=False)
     args, unknown = parse_cmd()
 
     conf = {
@@ -51,4 +50,4 @@ def main():
         "append_mode": args.append,
     }
 
-    downloader.run(conf)
+    entry(conf)
