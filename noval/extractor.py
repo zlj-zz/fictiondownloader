@@ -1,4 +1,4 @@
-from typing import Iterator, Union, Optional
+from typing import Iterator, List, Tuple, Union, Optional
 import re
 import unicodedata
 import numpy as np
@@ -17,6 +17,7 @@ def html2element(html: str) -> HtmlElement:
     html = unicodedata.normalize("NFKC", html)
 
     html = re.sub("</?br.*?>", "\n", html)
+    # sourcery skip: inline-immediately-returned-variable
     element = fromstring(html)
     return element
 
@@ -41,7 +42,7 @@ def count_text_tag(element: HtmlElement, tag: str) -> int:
     return tag_num + direct_text
 
 
-def get_all_text_of_element(element_list: Union[list, HtmlElement]) -> list[str]:
+def get_all_text_of_element(element_list: Union[List, HtmlElement]) -> List[str]:
     if not isinstance(element_list, list):
         element_list = [element_list]
 
@@ -145,11 +146,7 @@ def calc_text_density(element: HtmlElement) -> float:
 def count_punctuation_num(text: str) -> int:
     """计算文字中符号的个数."""
 
-    count = 0
-    for char in text:
-        if char in """！，。？、；：“”‘’《》「」【】%（）,.?:;'"!%()""":
-            count += 1
-    return count
+    return sum(char in """！，。？、；：“”‘’《》「」【】%（）,.?:;'"!%()""" for char in text)
 
 
 def calc_sbdi(text: str, ti: int, lti: int) -> float:
@@ -199,10 +196,12 @@ class Extractor(object):
     def __init__(self, base_url: Optional[str] = None) -> None:
         self.base_url = base_url
 
-    def set_base_url(self, url: str):
+    def set_base_url(self, url: str) -> "Extractor":
         self.base_url = url
 
-    def _process_ndo(self, text_list: list, name: str):
+        return self
+
+    def _process_ndo(self, text_list: List, name: str):
         fiction = ""
         update_time = ""
         other = []
@@ -224,7 +223,9 @@ class Extractor(object):
 
         return [fiction, update_time, ",".join(other)]
 
-    def extract_search(self, html: str, name: str, cur_url: Optional[str] = None):
+    def extract_search(
+        self, html: str, name: str, cur_url: Optional[str] = None
+    ) -> List[Tuple]:
         """提取小说搜索结果
 
         结果中应存在 `<a href='xxx.html'>name</a>`, 通过匹配所有 a 标签的内容是否包含给定的 name。
@@ -260,7 +261,7 @@ class Extractor(object):
 
         return res
 
-    def extract_detail(self, html: str, cur_url: Optional[str] = None):
+    def extract_detail(self, html: str, cur_url: Optional[str] = None) -> str:
         """提取详情页"""
 
         cur_url = cur_url or self.base_url or ""
@@ -276,45 +277,71 @@ class Extractor(object):
                     else:
                         return ""
 
-    def extract_chapters(self, html: str, cur_url: Optional[str] = None):
+    def _extract_chapters_with_tag(self, element, tags, min_valid_count: int = 20):
+        # out tag, inner tag, (invalid tag, invalid text)
+        father, child, (sp, sp_text) = tags
+        ul_list: List[HtmlElement] = element.xpath(f"//{father}")
+
+        max_li_count: int = 0
+        target_ul: Optional[HtmlElement] = None
+
+        # 找到包含 `<li>` 标签最多的元素，默认该元素下包含了所有章节.
+        for ul in ul_list:
+            li_count = count_text_tag(ul, f"{child}")
+            if li_count > max_li_count:
+                max_li_count = li_count
+                target_ul = ul
+
+        if target_ul is None or max_li_count < min_valid_count * 2:
+            return []
+
+        # 删除无效章节
+        if sp and sp_text:
+            remove_flag = 0
+            for i in target_ul:
+                if i.tag == sp:
+                    remove_flag = 1 if sp_text in i.text else 0
+
+                if remove_flag == 1 and i.tag == child:
+                    target_ul.remove(i)
+
+        urls = target_ul.xpath(f".//{child}/a/@href")
+        texts = target_ul.xpath(f".//{child}/a/text()")
+
+        return zip(urls, texts)
+
+    def extract_chapters(self, html: str, cur_url: Optional[str] = None) -> List[Tuple]:
         """提取小说章节列表
 
-        这里认为小说列表格式为 `ui>li`, 所以先提取出所有的 ul 标签，找到包含 li 最多的 ul 标签.
+        这里认为小说章节放在列表标签中，例如：`ul>li`, 所以先提取出所有的 ul 标签，找到包含 li 最多的 ul 标签.
         如果最终的 ul 中包含的 li 个数小于设定的阈值，则认为没有章节列表.
+
+        ul>li
+        dl>dt,dd
         """
 
         cur_url = cur_url or self.base_url or ""
         element = html2element(html)
 
         res = []
+        rules = [
+            ("dl", "dd", ("dt", "最新章节")),
+            ("ul", "li", ("", "")),
+        ]
 
-        # 章节列表被包裹在 `<ul>` 下.
-        ul_list = element.xpath("//ul")
+        for tags in rules:
+            cs = self._extract_chapters_with_tag(element, tags, min_valid_count=20)
+            if cs:
+                break
 
-        min_valid_count: int = 20
-        max_li_count: int = 0
-        target_ul: Optional[HtmlElement] = None
-
-        # 找到包含 `<li>` 标签最多的元素，默认该元素下包含了所有章节.
-        for ul in ul_list:
-            li_count = count_text_tag(ul, "li")
-            if li_count > max_li_count:
-                max_li_count = li_count
-                target_ul = ul
-
-        if target_ul is None or max_li_count < min_valid_count * 2:
-            return res
-
-        urls = target_ul.xpath(".//li/a/@href")
-        texts = target_ul.xpath(".//li/a/text()")
-
-        for url, text in zip(urls, texts):
+        # print(list(cs.copy()))
+        for url, text in cs:
             url = splicing_url(cur_url, url)
             res.append((text, url))
 
         return res
 
-    def extract_content(self, html: str):
+    def extract_content(self, html: str) -> str:
         """提取正文"""
 
         element = html2element(html)

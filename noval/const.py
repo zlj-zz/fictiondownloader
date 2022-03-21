@@ -1,6 +1,7 @@
 SEARCH_LIST = [
     "https://www.feishanzw.com/search.php?search={0}",
     "https://www.kankezw.com/search.html?searchkey={0}",
+    "https://www.shuquge.com/search.php?searchkey={0}",
 ]
 
 DETAIL_KEYWORD = ["在线阅读"]

@@ -16,32 +16,46 @@ def demo1():
     html_list = glob.glob(f"{_EXAMPLE_DIR}/search_*.html", recursive=True)
     for html in html_list:
         with open(html) as f:
+            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>{html}>>>>>>>>>>>>>>>>>>>>>>>>>")
             pprint(Extractor().extract_search(f.read(), name))
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 
 def demo2():
     html_list = glob.glob(f"{_EXAMPLE_DIR}/desc_*.html", recursive=True)
     for html in html_list:
         with open(html) as f:
+            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>{html}>>>>>>>>>>>>>>>>>>>>>>>>>")
             pprint(Extractor().extract_detail(f.read()))
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 
 def demo3():
     html_list = glob.glob(f"{_EXAMPLE_DIR}/chapters_*.html", recursive=True)
     for html in html_list:
         with open(html) as f:
+            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>{html}>>>>>>>>>>>>>>>>>>>>>>>>>")
             pprint(Extractor().extract_chapters(f.read()))
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
 
 def demo4():
     html_list = glob.glob(f"{_EXAMPLE_DIR}/content_*.html", recursive=True)
     for html in html_list:
         with open(html) as f:
+            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>{html}>>>>>>>>>>>>>>>>>>>>>>>>>")
             pprint(Extractor().extract_content(f.read()))
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
+
+def test():
+    with open(f"{_EXAMPLE_DIR}/chapters_3.html") as f:
+        pprint(Extractor().extract_chapters(f.read()))
 
 
 if __name__ == "__main__":
     # demo1()
     # demo2()
-    # demo3()
-    demo4()
+    demo3()
+    # demo4()
+    # test()

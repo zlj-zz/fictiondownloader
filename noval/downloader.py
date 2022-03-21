@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional, Tuple
 import os
 import textwrap
 import time
@@ -35,10 +35,12 @@ class Downloader(object):
         retry: int = 5,
         encoding: str = "utf-8",
         verify: bool = True,
-        urls: Optional[str] = [],
+        urls: Optional[str] = None,
         extractor: Extractor = Extractor(),
         console: Console = Console(),
     ) -> None:
+        if urls is None:
+            urls = []
         self.timeout = timeout
         self.retry = retry
         self.encoding = encoding
@@ -53,7 +55,7 @@ class Downloader(object):
     #########
     # tools
     #########
-    def _get_html(self, url: str, retry: int) -> tuple[str, str]:
+    def _get_html(self, url: str, retry: int) -> Tuple[str, str]:
         html, true_url = "", ""
 
         try:
@@ -77,18 +79,18 @@ class Downloader(object):
     def get_html(self, url: str):
         return self._get_html(url, self.retry)
 
-    def save(self, file: str, content: str, mode: str = "w"):
+    def save(self, file: str, content: str, mode: str = "w") -> None:
         with open(file, mode=mode) as fp:
             fp.write(content)
 
-    def clear(self, file: str):
+    def clear(self, file: str) -> None:
         with open(file, mode="w") as _:
             pass
 
     ########
     # step
     ########
-    def search_fiction(self, name) -> list[str]:
+    def search_fiction(self, name: str) -> List[str]:
         search_res = []
 
         with self._console.status(
@@ -109,15 +111,48 @@ class Downloader(object):
 
         html, u = self.get_html(next_url)
         res = extractor.extract_chapters(html or DEFAULT_HTM, u)
+        # print(res)
 
         if not res:
-            next_url = extractor.extract_detail(html or DEFAULT_HTM, u)
-            if next_url:
+            if next_url := extractor.extract_detail(html or DEFAULT_HTM, u):
                 self._console.print(f"Get next url: {next_url}")
                 html, u = self.get_html(next_url)
                 res = extractor.extract_chapters(html or DEFAULT_HTM, u)
 
         return res
+
+    ##########
+    # display
+    ##########
+    def fiction_table(self, search_res: List[List[str]]) -> Table:
+        tb = Table(title="Search Result", collapse_padding=True)
+        tb.add_column("Idx", style="green")
+        tb.add_column("Fiction Name", style="yellow")
+        tb.add_column("Last Update", style="cyan")
+        tb.add_column("Other Info")
+
+        for search_no, search_res_item in enumerate(search_res, start=1):
+            tb.add_row(
+                f"[yellow]No.[/yellow]{search_no} ", *search_res_item[0].split("|")
+            )
+
+        return tb
+
+    def get_choice(self, num: int) -> int:
+        range_str = f"1-{num}" if num > 1 else "1"
+        while True:
+            idx = input(f"input choice({range_str}):")
+            try:
+                idx = int(idx) - 1
+                if not (0 <= idx < num):
+                    print("\033[1A\rerror: Index out of range.\033[K")
+                    continue
+            except Exception:
+                print("\033[1A\rerror: Please input a number.\033[K")
+            else:
+                break
+
+        return idx
 
     #######
     # main
@@ -127,7 +162,7 @@ class Downloader(object):
         fiction_name: str,
         dir_path: Optional[str] = None,
         sep: float = 0.0,
-        chapter_range: Optional[tuple[int, int]] = None,
+        chapter_range: Optional[Tuple[int, int]] = None,
         split: Optional[int] = None,
         append_mode: bool = False,
     ):
@@ -141,29 +176,10 @@ class Downloader(object):
             return
 
         # Show search result.
-        res_t = Table(title="Search Result", collapse_padding=True)
-        res_t.add_column("Idx", style="green")
-        res_t.add_column("Fiction Name", style="yellow")
-        res_t.add_column("Last Update", style="cyan")
-        res_t.add_column("Other Info")
-
-        for search_no, search_res_item in enumerate(search_res, start=1):
-            res_t.add_row(str(search_no), *search_res_item[0].split("|"))
-
-        console.print(res_t)
+        console.print(self.fiction_table(search_res))
 
         # Choice.
-        while True:
-            idx = input(f"input choice(1-{len(search_res)}):")
-            try:
-                idx = int(idx) - 1
-                if idx >= len(search_res) or idx < 0:
-                    print("\033[1A\rerror: Index out of range.\033[K")
-                    continue
-            except Exception:
-                print("\033[1A\rerror: Please input a number.\033[K")
-            else:
-                break
+        idx = self.get_choice(len(search_res))
 
         # Get chapters.
         real_name = search_res[idx][0].split("|")[0]
@@ -227,16 +243,15 @@ class Downloader(object):
                     while True:
                         html, _ = self.get_html(url)
 
-                        if not html:
-                            try_ans = input(f"Are you want to try again (y/n):").lower()
-                            if try_ans in ["y", "Y", "yes", "Yes"]:
-                                print("\033[1A\rRe-trying...\033[K")
-                                continue
-                            else:
-                                print("INFO: Can't get current chapter page.")
-                                return
-                        else:
+                        if html:
                             break
+
+                        try_ans = input("Are you want to try again (y/n):").lower()
+                        if try_ans in ["y", "Y", "yes", "Yes"]:
+                            print("\033[1A\rRe-trying...\033[K")
+                        else:
+                            print("INFO: Can't get current chapter page.")
+                            return
 
                     content = extractor.extract_content(html)
 
@@ -277,6 +292,6 @@ class Downloader(object):
         self._console.print(conf)
         try:
             self._run(**conf)
-            self._console.print("[green u]==end==")
+            self._console.print("[green u]End ^.^")
         except (KeyboardInterrupt,):
             self._console.print("\n[yellow]Noval Manual Stop.")
