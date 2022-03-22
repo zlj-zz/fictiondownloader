@@ -91,7 +91,7 @@ class Downloader(object):
     ########
     # step
     ########
-    def search_fiction(self, name: str) -> Generator[List]:
+    def search_fiction(self, name: str) -> Generator:
         """"""
 
         for search_url in self._search_list:
