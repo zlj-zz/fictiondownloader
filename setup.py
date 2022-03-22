@@ -1,3 +1,4 @@
+# sourcery skip: use-fstring-for-formatting
 import os, sys
 from setuptools import setup, find_packages
 import noval
