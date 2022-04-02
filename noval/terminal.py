@@ -1,4 +1,4 @@
-from typing import Generator, List, Optional, Tuple
+from typing import Dict, Generator, List, Optional, Tuple
 import os
 
 from .utils import slice_list
@@ -178,7 +178,7 @@ def _entry(
         )
 
 
-def entry(conf: dict):
+def entry(conf: Dict) -> None:
     console.print(conf)
     try:
         _entry(**conf)

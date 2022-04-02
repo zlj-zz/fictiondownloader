@@ -30,12 +30,7 @@ def iter_node(element: HtmlElement) -> Iterator:
 
 
 def count_text_tag(element: HtmlElement, tag: str) -> int:
-    """
-    当前标签下面的 text()和给定标签，都应该进行统计
-    :param element:
-    :param tag:
-    :return:
-    """
+    """当前标签下面的 text()和给定标签，都应该进行统计"""
 
     tag_num = len(element.xpath(f".//{tag}"))
     direct_text = len(element.xpath("text()"))
@@ -61,14 +56,15 @@ def get_all_text_of_element(element_list: Union[List, HtmlElement]) -> List[str]
     return text_list
 
 
-def need_skip_ltgi(ti, lti) -> bool:
+def need_skip_ltgi(ti: int, lti: int) -> bool:
     """
     在这种情况下，tgi = ltgi = 2，计算公式的分母为0. 为了把这种情况和列表页全是链接的
     情况区分出来，所以要做一下判断。检查节点下面所有 a 标签的超链接中的文本数量与本节点
     下面所有文本数量的比值。如果超链接的文本数量占比极少，那么此时，ltgi 应该忽略
-    :param ti: 节点 i 的字符串字数
-    :param lti: 节点 i 的带链接的字符串字数
-    :return: bool
+
+    Args:
+        ti: 节点 i 的字符串字数
+        lti: 节点 i 的带链接的字符串字数
     """
 
     # if lti == 0:
@@ -121,7 +117,9 @@ def calc_text_density(element: HtmlElement) -> float:
     tgi = len(element.xpath(".//*"))
     ltgi = len(a_tag_list)
     if (tgi - ltgi) == 0:
-        if not need_skip_ltgi(ti, lti):
+        if need_skip_ltgi(ti, lti):
+            ltgi = 0
+        else:
             return {
                 "density": 0,
                 "ti_text": ti_text,
@@ -130,8 +128,6 @@ def calc_text_density(element: HtmlElement) -> float:
                 "tgi": tgi,
                 "ltgi": ltgi,
             }
-        else:
-            ltgi = 0
     density = (ti - lti) / (tgi + 1 - ltgi)  # 防止 tgi == ltgi == 0
     return {
         "density": density,
@@ -174,8 +170,6 @@ def calc_new_score(node_info_dict: dict) -> None:
     ndi：节点 i 的文本密度
     p_tag_count: 正文所在标签数。例如正文在<p></p>标签里面，这里就是 p 标签数，如果正文在<div></div>标签，这里就是 div 标签数
     sbdi：节点 i 的符号密度
-    :param std:
-    :return:
     """
 
     for node_hash, node_info in node_info_dict.items():
@@ -214,8 +208,7 @@ class Extractor(object):
             # update time.
             else:
                 for dt in DATETIME_PATTERN:
-                    dt_obj = re.search(dt, text)
-                    if dt_obj:
+                    if dt_obj := re.search(dt, text):
                         update_time = dt_obj.group(1)
                         break
                 else:
@@ -271,13 +264,15 @@ class Extractor(object):
             if node.tag.lower() == "a":
                 text = "".join(node.xpath(".//text()"))
                 if detail_keyword_pattern.search(text):
-                    url = node.xpath(".//@href")
-                    if url:
-                        return splicing_url(cur_url, url[0])
-                    else:
-                        return ""
+                    return (
+                        splicing_url(cur_url, url[0])
+                        if (url := node.xpath(".//@href"))
+                        else ""
+                    )
 
-    def _extract_chapters_with_tag(self, element, tags, min_valid_count: int = 20):
+    def _extract_chapters_with_tag(
+        self, element: HtmlElement, tags: List[Tuple], min_valid_count: int = 20
+    ):
         # out tag, inner tag, (invalid tag, invalid text)
         father, child, (sp, sp_text) = tags
         ul_list: List[HtmlElement] = element.xpath(f"//{father}")

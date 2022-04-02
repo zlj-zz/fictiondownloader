@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional, Tuple, Generator
+from typing import Dict, List, Literal, Optional, Sequence, Tuple, Generator
 import time
 import textwrap
 import requests
@@ -15,6 +15,8 @@ class DownloaderError(Exception):
 
 
 class Downloader(object):
+    """Fiction download API class."""
+
     def __init__(
         self,
         timeout: int = 10,
@@ -22,7 +24,7 @@ class Downloader(object):
         encoding: str = "utf-8",
         verify: bool = True,
         urls: Optional[str] = None,
-        extractor: Extractor = Extractor(),
+        extractor_class: Sequence[Extractor] = Extractor,
     ) -> None:
         if urls is None:
             urls = []
@@ -34,7 +36,7 @@ class Downloader(object):
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         self._search_list = [*SEARCH_LIST, *urls]
-        self._extractor = extractor
+        self._extractor = extractor_class()
 
     #########
     # tools
@@ -80,25 +82,29 @@ class Downloader(object):
     def get_html(self, url: str):
         return self._get_html(url, self.retry)
 
-    def save(self, file: str, content: str, mode: str = "w") -> None:
+    def write(self, file: str, content: str, mode: str = "w") -> None:
+        """Write content to file."""
         with open(file, mode=mode) as fp:
             fp.write(content)
 
     def clear(self, file: str) -> None:
+        """Clear the fiction file."""
         with open(file, mode="w") as _:
             pass
 
     ########
     # step
     ########
-    def search_fiction(self, name: str) -> Generator:
-        """"""
+    def search_fiction(self, name: str) -> Generator[List, None, None]:
+        """Yield result list of each search url."""
 
         for search_url in self._search_list:
             html, _ = self.get_html(search_url.format(name))
             yield self._extractor.extract_search(html or DEFAULT_HTM, name, search_url)
 
     def get_chapters(self, next_url: str) -> List:
+        """Return a chapter list with name and url."""
+
         extractor = self._extractor
 
         html, u = self.get_html(next_url)
@@ -119,7 +125,18 @@ class Downloader(object):
         path: str,
         sep: float = 0.0,
         append_mode: bool = False,
-    ) -> Generator:
+    ) -> Generator[Tuple[str, str], bool, None]:
+        """Yield (name, url) when finish once downloading.
+        Yield (None, None) when get html failed, re-try when receive
+        True else closure.
+
+        Args:
+            down_chapters (List[Tuple[str, str]]): chapters list of need download.
+            path (str): saving dir path.
+            sep (float, optional): sleep time for each download. Defaults to 0.0.
+            append_mode (bool, optional): whether download with append mode. Defaults to False.
+        """
+
         extractor = self._extractor
         not append_mode and self.clear(path)
 
@@ -144,7 +161,7 @@ class Downloader(object):
                 continue
 
             chapter_content = f"{chapter_name}\n{textwrap.indent(content,'  ')}\n\n"
-            self.save(path, chapter_content, mode="a+")
+            self.write(path, chapter_content, mode="a+")
 
             time.sleep(sep)
             yield chapter_name, url
