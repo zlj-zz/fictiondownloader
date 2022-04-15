@@ -1,5 +1,4 @@
 __project__ = "noval"
-__version__ = "2022.03.22"
 __url__ = "https://github.com/zlj-zz/noval.git"
 __uri__ = __url__
 
@@ -9,3 +8,6 @@ __email__ = "zlj19971222@outlook.com"
 __license__ = ""
 __copyright__ = "Copyright (c) 2022 Zachary"
 
+from .const import VERSION
+
+__version__ = VERSION

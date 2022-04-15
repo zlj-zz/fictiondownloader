@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 
+from .const import VERSION
 from .terminal import entry
 
 
@@ -28,7 +29,7 @@ def parse_cmd():
         "--version",
         action="version",
         help="Show version and exit.",
-        version="noval version: 2022.03.22",
+        version=f"noval version: {VERSION}",
     )
 
     # parse command.

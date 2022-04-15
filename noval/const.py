@@ -1,3 +1,5 @@
+VERSION = "2022.04.16"
+
 SEARCH_LIST = [
     "https://www.feishanzw.com/search.php?search={0}",
     "https://www.kankezw.com/search.html?searchkey={0}",

@@ -1,5 +1,6 @@
 {
 	"cSpell.words": [
+		"curr",
 		"lxml",
 		"NFKC",
 		"noval",
@@ -8,6 +9,7 @@
 		"sourcery",
 		"sript",
 		"tbody",
+		"uvicorn",
 		"yapf"
 	]
 }
