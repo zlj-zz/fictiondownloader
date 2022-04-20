@@ -8,7 +8,7 @@
 |_| |_|\___/ \_/ \__,_|_| Configurable novel downloader.
 ```
 
-![demo pic](https://github.com/zlj-zz/noval/blob/main/example/demo.png)
+![demo pic](./example/demo.png)
 
 ## Usage
 
@@ -43,4 +43,13 @@ pip3 install noval --upgrade
 ```
 git clone --dep 1 https://github.com/zlj-zz/noval.git
 cd noval && python3 setup.py install
+```
+
+## Web-API
+
+It encapsulates the functions in noval and provides a set of interfaces for
+downloading novels. Can be used to build their own applications.
+
+```
+python3 -m noval.api
 ```
