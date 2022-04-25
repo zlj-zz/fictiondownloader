@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 from noval.downloader import Downloader
 from .utils import encode64, decode64
+from .code import *
 
 try:
     from fastapi import FastAPI
@@ -26,9 +27,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-curr_crawl_status: Dict[str, int] = {}
+curr_crawl_idx: Dict[str, int] = {}
+total_dict: Dict[str, int] = {}
+
 dir_path = os.path.dirname(os.path.abspath("."))
-print(dir_path)
+print(f"::{dir_path}")
 # dir_path = f"{dir_path}/.."
 
 encodekey = lambda fname, url: encode64(f"{fname}@@@{url}")
@@ -68,45 +71,66 @@ def get_chapters(key: str):
 
 
 @app.get("/crawl")
-def crawl(key: str):
+def crawl(key: str, force: bool = False):
     """Try to crawl a fiction."""
     global curr_chapter_idx
 
     # process fiction name
     fname, target_url = decodekey(key)
     filename = f"{key}.txt"
-    print(target_url, filename)
+    filepath = os.path.join(dir_path, f"{key}.txt")
+    print("::", target_url, filename)
 
-    # get fiction chapters
-    chapters = dr.get_chapters(target_url)
-    print(chapters)
+    has_file: bool = os.path.isfile(filepath)
 
-    if chapters:
-        curr_crawl_status[key] = 0
+    # init data query.
+    return_data = {
+        "total": -1,
+        "key": key,
+        "exist": has_file,
+        "status": CrawlStatus.NONE,
+    }
 
-        def _c():
+    is_crawling: bool = curr_crawl_idx.get(key, NO_STATUS) not in {
+        NO_STATUS,
+        FINISH_STATUS,
+    }
 
-            for idx, msg in enumerate(
-                dr.download_chapters(chapters, os.path.join(dir_path, f"{key}.txt"))
-            ):
-                print(msg)
-                curr_crawl_status[key] = idx
-            curr_crawl_status[key] = -200
-
-        threading.Thread(target=_c, daemon=True).start()
-
-        data = {"total": len(chapters), "key": key}
+    # if file exist or crawling, then don't repeat.
+    if has_file and not force:
+        pass
+    elif is_crawling:
+        return_data["status"] = CrawlStatus.RUNNING
+        return_data["total"] = total_dict.get(key, -1)
     else:
-        data = {"total": 0, "key": ""}
+        # get fiction chapters
+        chapters = dr.get_chapters(target_url)
+        print(chapters)
 
-    return {"data": data}
+        if chapters:
+            return_data["total"] = total_dict[key] = len(chapters)
+            return_data["status"] = CrawlStatus.START
+            curr_crawl_idx[key] = 0
+
+            def _c():
+                for idx, msg in enumerate(dr.download_chapters(chapters, filepath)):
+                    print(msg)
+                    curr_crawl_idx[key] = idx
+                curr_crawl_idx[key] = FINISH_STATUS
+
+            # start thread download.
+            threading.Thread(target=_c, daemon=True).start()
+
+    # data = {'total': 1000, 'key':''}
+    return {"data": return_data}
 
 
 @app.get("/crawl_status")
 def get_crawl_status(key: str):
     """Get current crawl progress of key."""
-    global curr_crawl_status
-    data = {"current": curr_crawl_status.get(key, 0)}
+    global curr_crawl_idx
+
+    data = {"current": curr_crawl_idx.get(key, NO_STATUS)}
     return {"data": data}
 
 
