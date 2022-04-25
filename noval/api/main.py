@@ -8,15 +8,26 @@ from .utils import encode64, decode64
 try:
     from fastapi import FastAPI
     from fastapi.responses import StreamingResponse, HTMLResponse
+    from fastapi.middleware.cors import CORSMiddleware
 except ModuleNotFoundError:
     print("Use 'pip install fastapi' to install fastapi first.")
     exit(1)
 
-app = FastAPI()
+
 dr = Downloader(verify=False)
+app = FastAPI()
+
+# CORS allow any host.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 curr_crawl_status: Dict[str, int] = {}
-dir_path = os.path.dirname(os.path.abspath(__file__))
+dir_path = os.path.dirname(os.path.abspath("."))
 print(dir_path)
 # dir_path = f"{dir_path}/.."
 
@@ -35,7 +46,7 @@ def index():
 @app.get("/fiction")
 def get_fictions(name: str):
     """Get fiction list follow name."""
-    res = {}
+    data = {}
 
     if name is not None:
         idx = 0
@@ -44,16 +55,16 @@ def get_fictions(name: str):
                 fname, dt, info = msg_string.split("|")
                 key = encodekey(fname, url)
 
-                res[idx] = {"name": fname, "date": dt, "info": info, "key": key}
+                data[idx] = {"name": fname, "date": dt, "info": info, "key": key}
                 idx += 1
 
-    return res
+    return {"data": data}
 
 
 @app.get("/chapters")
 def get_chapters(key: str):
     """Get fiction chapters list."""
-    return dr.get_chapters(decodekey(key)[1])
+    return {"data": dr.get_chapters(decodekey(key)[1])}
 
 
 @app.get("/crawl")
@@ -84,17 +95,19 @@ def crawl(key: str):
 
         threading.Thread(target=_c, daemon=True).start()
 
-        return {"total": len(chapters), "key": key}
+        data = {"total": len(chapters), "key": key}
     else:
-        return {"total": 0, "key": ""}
+        data = {"total": 0, "key": ""}
+
+    return {"data": data}
 
 
 @app.get("/crawl_status")
 def get_crawl_status(key: str):
     """Get current crawl progress of key."""
     global curr_crawl_status
-
-    return {"current": curr_crawl_status.get(key, 0)}
+    data = {"current": curr_crawl_status.get(key, 0)}
+    return {"data": data}
 
 
 @app.get("/download")

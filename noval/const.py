@@ -1,4 +1,4 @@
-VERSION = "2022.04.16"
+VERSION = "2022.04.25"
 
 SEARCH_LIST = [
     "https://www.feishanzw.com/search.php?search={0}",
