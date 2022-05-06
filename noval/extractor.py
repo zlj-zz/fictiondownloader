@@ -181,7 +181,7 @@ def calc_new_score(node_info_dict: dict) -> None:
         node_info_dict[node_hash]["score"] = score
 
 
-class Extractor(object):
+class Extractor:
     """
     Code reference: https://github.com/GeneralNewsExtractor/GeneralNewsExtractor
     Principle reference: https://kns.cnki.net/KCMS/detail/detail.aspx?dbname=CJFDLAST2019&filename=GWDZ201908029

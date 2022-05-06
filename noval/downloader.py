@@ -14,7 +14,7 @@ class DownloaderError(Exception):
     pass
 
 
-class Downloader(object):
+class Downloader:
     """Fiction download API class."""
 
     def __init__(
@@ -138,30 +138,34 @@ class Downloader(object):
         """
 
         extractor = self._extractor
+
+        # Clear the file, if already exist and not append mode.
         not append_mode and self.clear(path)
 
-        for chapter_name, url in down_chapters:
-            # console.print(chapter_name, url)
+        # Avoid frequent creation and destruction of IO.
+        with open(path, mode="a+") as f:
+            for chapter_name, url in down_chapters:
+                # console.print(chapter_name, url)
 
-            while True:
-                html, _ = self.get_html(url)
+                while True:
+                    html, _ = self.get_html(url)
 
-                if html:
-                    break
+                    if html:
+                        break
 
-                flag = yield (None, None)
-                if flag:
+                    flag = yield (None, None)
+                    if flag:
+                        continue
+                    else:
+                        return
+
+                content = extractor.extract_content(html)
+
+                if not content:
                     continue
-                else:
-                    return
 
-            content = extractor.extract_content(html)
+                chapter_content = f"{chapter_name}\n{textwrap.indent(content,'  ')}\n\n"
+                f.write(chapter_content)
 
-            if not content:
-                continue
-
-            chapter_content = f"{chapter_name}\n{textwrap.indent(content,'  ')}\n\n"
-            self.write(path, chapter_content, mode="a+")
-
-            time.sleep(sep)
-            yield chapter_name, url
+                time.sleep(sep)
+                yield chapter_name, url
