@@ -14,7 +14,11 @@ if sys.argv[-1] == "release":
         os.system("rm -rf dist/*")
     os.system("python3 setup.py sdist bdist_wheel")
     os.system("twine upload dist/*")
-    sys.exit()
+    sys.exit(0)
+
+elif sys.argv[-1] == "uninstall":
+    os.system("python3 -m pip uninstall noval")
+    sys.exit(0)
 
 PYTHON_VERSION = sys.version_info[:3]
 SUPPORT_VERSION = (3, 8, 0)
