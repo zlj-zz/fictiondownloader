@@ -3,7 +3,7 @@ import os, threading
 from urllib.parse import urlencode
 
 from noval.downloader import Downloader
-from .utils import encode64, decode64
+from .utils import encode64, decode64, local_exist, key2file
 from .code import *
 
 try:
@@ -77,11 +77,10 @@ def crawl(key: str, force: bool = False):
 
     # process fiction name
     fname, target_url = decodekey(key)
-    filename = f"{key}.txt"
-    filepath = os.path.join(dir_path, f"{key}.txt")
-    print("::", target_url, filename)
+    filepath = key2file(key, dir_path)
+    print("::", target_url, filepath)
 
-    has_file: bool = os.path.isfile(filepath)
+    has_file: bool = local_exist(filepath)
 
     # init data query.
     return_data = {
@@ -130,8 +129,16 @@ def get_crawl_status(key: str):
     """Get current crawl progress of key."""
     global curr_crawl_idx
 
-    data = {"current": curr_crawl_idx.get(key, NO_STATUS)}
-    return {"data": data}
+    curr = curr_crawl_idx.get(key, NO_STATUS)
+
+    # Only check whether file already exist when `NO_STATUS`. This ensures that the IO
+    # query is executed at most once.
+    if curr == NO_STATUS and local_exist(key2file(key, dir_path)):
+        curr = EXIST_STATUS
+
+    return {
+        "data": {"current": curr},
+    }
 
 
 @app.get("/download")

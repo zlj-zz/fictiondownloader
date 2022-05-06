@@ -1,7 +1,9 @@
 import base64
+import os
 
 
 def encode64(s: str) -> str:
+    # sourcery skip: inline-immediately-returned-variable
     misplaced_string = "".join(
         [chr(ord(code) + (idx % 5)) for idx, code in enumerate(s)]
     )
@@ -10,6 +12,14 @@ def encode64(s: str) -> str:
 
 
 def decode64(s: str) -> str:
+    # sourcery skip: inline-immediately-returned-variable
+    # base64 decode should meet the padding rules
+    remainder = len(s) % 3
+    if remainder == 1:
+        s += "=="
+    elif remainder == 2:
+        s += "="
+
     decode64_str = base64.b64decode(s.encode()).decode()
 
     original_string = "".join(
@@ -18,7 +28,11 @@ def decode64(s: str) -> str:
     return original_string
 
 
-if __name__ == "__main__":
-    c = encode64("https://www.baidu.com/1234")
-    print(c)
-    print(decode64(c))
+def local_exist(path: str, only_file: bool = True) -> bool:
+    """Check whether exist local file."""
+    return os.path.isfile(path) if only_file else os.path.exists(path)
+
+
+def key2file(key: str, path: str = "") -> str:
+    """Trans the key to local file path."""
+    return os.path.join(path, f"{key}.txt")

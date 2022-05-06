@@ -183,7 +183,4 @@ cython_debug/
 *.txt
 !requirements.txt
 
-
-what.json
-test.py
-test_rich.py
+test*.py
