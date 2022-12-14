@@ -1,5 +1,5 @@
 # sourcery skip: use-fstring-for-formatting
-import os, sys
+import os, sys, re
 from setuptools import setup, find_packages
 import noval
 
@@ -28,6 +28,11 @@ if PYTHON_VERSION < SUPPORT_VERSION:
 
 try:
     LONG_DESCRIPTION = open("README.md", encoding="utf-8").read()
+    LONG_DESCRIPTION = re.sub(
+        r"\((\.)([a-zA-Z/.]+\.(?:png|jpg|jpeg))\)",
+        r"(https://github.com/zlj-zz/noval/blob/main\2)",
+        LONG_DESCRIPTION,
+    )
 except Exception:
     LONG_DESCRIPTION = """# noval
 
