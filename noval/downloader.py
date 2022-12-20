@@ -5,7 +5,8 @@ import requests
 import urllib3
 
 from .extractor import Extractor
-from .const import DEFAULT_HTM, SEARCH_LIST
+from .const import DEFAULT_HTM, SEARCH_LIST, HEADERS
+from .debug import Noval_IsDebug
 
 
 class DownloaderError(Exception):
@@ -36,7 +37,7 @@ class Downloader:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
         self._search_list = [*SEARCH_LIST, *urls]
-        self._extractor = extractor_class()
+        self._extractor: Extractor = extractor_class()
 
     #########
     # tools
@@ -52,10 +53,12 @@ class Downloader:
 
         try:
             if mode == "get":
-                resp = requests.get(url, timeout=self.timeout, verify=self.verify)
+                resp = requests.get(
+                    url, timeout=self.timeout, verify=self.verify, headers=HEADERS
+                )
             elif mode == "post":
                 resp = requests.post(
-                    url, data, timeout=self.timeout, verify=self.verify
+                    url, data, timeout=self.timeout, verify=self.verify, headers=HEADERS
                 )
             else:
                 raise DownloaderError(
@@ -80,6 +83,8 @@ class Downloader:
         return html, true_url
 
     def get_html(self, url: str):
+        Noval_IsDebug and print(url)
+
         return self._get_html(url, self.retry)
 
     def write(self, file: str, content: str, mode: str = "w") -> None:
@@ -99,7 +104,9 @@ class Downloader:
         """Yield result list of each search url."""
 
         for search_url in self._search_list:
-            html, _ = self.get_html(search_url.format(name))
+            html, _root_url = self.get_html(search_url.format(name))
+            Noval_IsDebug and print(_root_url)
+            # Noval_IsDebug and print(html)
             yield self._extractor.extract_search(html or DEFAULT_HTM, name, search_url)
 
     def get_chapters(self, next_url: str) -> List:

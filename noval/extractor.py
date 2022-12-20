@@ -6,6 +6,7 @@ from lxml.html import fromstring, HtmlElement
 
 from .utils import splicing_url, get_keyword_pattern
 from .const import DATETIME_PATTERN, DETAIL_KEYWORD, HIGH_WEIGHT_KEYWORD
+from .debug import Noval_IsDebug
 
 
 high_weight_keyword_pattern = get_keyword_pattern(HIGH_WEIGHT_KEYWORD)

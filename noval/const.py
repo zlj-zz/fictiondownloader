@@ -1,9 +1,9 @@
 VERSION = "2022.05.06"
 
 SEARCH_LIST = [
-    "https://www.feishanzw.com/search.php?search={0}",
-    "https://www.kankezw.com/search.html?searchkey={0}",
-    "https://www.shuquge.com/search.php?searchkey={0}",
+    "https://mip.feishanzw.com/search.php?search={0}",
+    "https://www.qishuta.net/search.html?searchkey={0}",
+    # "https://www.shuquge.com/search.php?searchkey={0}",
 ]
 
 DETAIL_KEYWORD = ["在线阅读"]
@@ -49,3 +49,7 @@ DEFAULT_HTM = """\
 	</body>
 </html>
 """
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:106.0) Gecko/20100101 Firefox/106.0",
+}
