@@ -1,12 +1,12 @@
 from typing import Iterator, List, Tuple, Union, Optional
 import re
 import unicodedata
-import numpy as np
-from lxml.html import fromstring, HtmlElement
 
 from .utils import splicing_url, get_keyword_pattern
 from .const import DATETIME_PATTERN, DETAIL_KEYWORD, HIGH_WEIGHT_KEYWORD
-from .debug import Noval_IsDebug
+
+import numpy as np
+from lxml.html import fromstring, HtmlElement
 
 
 high_weight_keyword_pattern = get_keyword_pattern(HIGH_WEIGHT_KEYWORD)
@@ -210,7 +210,7 @@ class Extractor:
             else:
                 for dt in DATETIME_PATTERN:
                     if dt_obj := re.search(dt, text):
-                        update_time = dt_obj.group(1)
+                        update_time = dt_obj[1]
                         break
                 else:
                     other.append(text)

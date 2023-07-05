@@ -1,9 +1,14 @@
-VERSION = "2022.05.06"
+import os
+
+VERSION = "2023.07.05"
+
+NOVAL_DEBUG = os.environ.get("NOVAL_DEBUG", "") == "debug"
 
 SEARCH_LIST = [
     "https://mip.feishanzw.com/search.php?search={0}",
     "https://www.qishuta.net/search.html?searchkey={0}",
     # "https://www.shuquge.com/search.php?searchkey={0}",
+    # "https://www.feiyanqing123.com/search/{0}",
 ]
 
 DETAIL_KEYWORD = ["在线阅读"]
@@ -51,5 +56,6 @@ DEFAULT_HTM = """\
 """
 
 HEADERS = {
+    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:106.0) Gecko/20100101 Firefox/106.0",
 }
