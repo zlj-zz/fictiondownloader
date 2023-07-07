@@ -11,7 +11,7 @@ from noval.downloader import Downloader
 
 
 def valid_search(dl: Downloader):
-    fiction_list = ["大主宰", "一剑独尊"]
+    fiction_list = ["大主宰"]  # , "一剑独尊"]
     for fiction_name in fiction_list:
         for part_search_res in dl.search_fiction(fiction_name):
             print(part_search_res)

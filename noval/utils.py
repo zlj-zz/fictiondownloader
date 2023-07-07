@@ -1,6 +1,6 @@
 from typing import List
-import re
 from urllib import parse
+import re
 
 
 URL_RE = re.compile(

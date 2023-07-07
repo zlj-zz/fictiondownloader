@@ -1,54 +1,117 @@
-from argparse import ArgumentParser
+from typing import Dict, Optional, Tuple
+import os
 
-from .const import VERSION
-from .terminal import entry
+from .utils import slice_list
+from .downloader import Downloader
+from .pretty import console, fiction_table, download_with_bar, Panel
 
 
-def parse_cmd():
-    parser = ArgumentParser(prog="noval", description="", prefix_chars="-")
+def get_choice(num: int) -> int:
+    range_str = f"1-{num}" if num > 1 else "1"
+    while True:
+        idx = input(f"input choice({range_str}):")
+        try:
+            idx = int(idx) - 1
+            if not (0 <= idx < num):
+                print("\033[1A\rerror: Index out of range.\033[K")
+                continue
+        except Exception:
+            print("\033[1A\rerror: Please input a number.\033[K")
+        else:
+            break
 
-    # add command.
-    parser.add_argument("name", type=str, help="fiction name.")
-    parser.add_argument("--sep", type=float, help="sleep time.")
-    parser.add_argument("--save-to", metavar="path", help="custom fiction save path.")
-    parser.add_argument(
-        "--range",
-        nargs=2,
-        type=int,
-        help="Download chapter range, like:`--range 10 20`",
+    return idx
+
+
+def _entry(
+    fiction_name: str,
+    dir_path: Optional[str] = None,
+    sep: float = 0.0,
+    chapter_range: Optional[Tuple[int, int]] = None,
+    split: Optional[int] = None,
+    append_mode: bool = False,
+) -> None:
+    dl = Downloader(verify=False)
+
+    # Search
+    search_res = []
+    with console.status(
+        f"Search: [bold green]'{fiction_name}'...", spinner="shark"
+    ) as _:
+        for part_search_res in dl.search_fiction(fiction_name):
+            search_res.extend(part_search_res)
+
+    if not search_res:
+        console.print("[red]Can't get search result page.")
+        return
+
+    # Show search result.
+    console.print(fiction_table(search_res))
+
+    # Choice.
+    idx = get_choice(len(search_res))
+
+    # Show choice result.
+    real_name = search_res[idx][0].split("|")[0]
+    real_path = os.path.join(dir_path, real_name) if dir_path else real_name
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
+
+    next_url = search_res[idx][1]
+    console.print(
+        Panel(
+            f"[yellow]{real_name}[/yellow], {next_url}",
+            title="Selected",
+            expand=False,
+        )
     )
-    exc_group = parser.add_mutually_exclusive_group()
-    exc_group.add_argument("--split", type=int, help="Download segmented storage.")
-    exc_group.add_argument(
-        "--append",
-        action="store_true",
-        help="Whether it is in append mode. It is recreated by default.",
-    )
-    parser.add_argument(
-        "-v",
-        "--version",
-        action="version",
-        help="Show version and exit.",
-        version=f"noval version: {VERSION}",
-    )
 
-    # parse command.
-    args, unknown = parser.parse_known_args()
+    # Get chapters.
+    chapters = dl.get_chapters(next_url)
+    if not chapters:
+        console.print("[red]No chapter found!")
+        return
 
-    # process command.
-    return args, unknown
+    chapter_display_str = f"[Total chapters {len(chapters)}]"
+    console.print(f"{chapter_display_str:=^100}")
+
+    if chapter_range:
+        chapters = chapters[chapter_range[0] - 1 : chapter_range[1] - 1]
+
+    # Download
+    if split and split > 1:
+        for part_id, part_res in enumerate(
+            slice_list(chapters, len(chapters) // split + 1), start=1
+        ):
+            download_with_bar(
+                dl.download_chapters(
+                    part_res,
+                    f"{real_path}.txt".replace(".txt", f"_{part_id}.txt"),
+                    sep,
+                    append_mode,
+                ),
+                len(part_res),
+                f"[green bold]Download part {part_id}...",
+                f"[green bold]Part {part_id} downloaded",
+            )
+    else:
+        download_with_bar(
+            dl.download_chapters(
+                chapters,
+                f"{real_path}.txt",
+                sep,
+                append_mode,
+            ),
+            len(chapters),
+            "[green bold]Download...",
+            "[green bold]Downloaded",
+        )
 
 
-def main():
-    args, unknown = parse_cmd()
-
-    conf = {
-        "fiction_name": args.name,
-        "dir_path": args.save_to,
-        "sep": args.sep or 0.0,
-        "chapter_range": args.range,
-        "split": args.split,
-        "append_mode": args.append,
-    }
-
-    entry(conf)
+def entry(conf: Dict) -> None:
+    console.print(conf)
+    try:
+        _entry(**conf)
+        console.print("[green u]End ^.^")
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Noval Manual Stop.")
